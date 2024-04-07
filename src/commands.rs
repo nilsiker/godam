@@ -3,7 +3,7 @@ use clap::Subcommand;
 
 use crate::{
     api::get_asset,
-    assets::{service::register_addon, Asset},
+    assets::{try_find_asset_unambiguously, Asset},
     config::Config,
     git,
 };
@@ -58,7 +58,9 @@ pub async fn install() -> Result<()> {
 }
 
 pub async fn add(name: &str) -> Result<()> {
-    register_addon(name).await
+    let mut config = Config::get()?;
+    let asset = try_find_asset_unambiguously(name, &config.godot_version).await?;
+    config.add_asset(asset)
 }
 
 pub fn rm(name: &str) -> Result<()> {

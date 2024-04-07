@@ -13,7 +13,8 @@ pub enum GodotError {
 }
 
 pub fn get_project_version() -> Result<Version> {
-    let file = std::fs::read_to_string("./project.godot")?;
+    let file =
+        std::fs::read_to_string("./project.godot").map_err(|_| GodotError::ProjectNotFound)?;
     let string = file
         .lines()
         .find(|line| line.starts_with(GODOT_PROJECT_LINE_START));

@@ -2,7 +2,7 @@
 
 ![rust 1.77](https://img.shields.io/badge/rust-1.77-orange)
 
-> 💡 Godam does not yet support install addons to Godot project.
+> 💡 Godam does not yet support installing addons to Godot project.
 >
 > This is a prioritized planned feature.
 

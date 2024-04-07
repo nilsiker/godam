@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::api::find_addon;
+use crate::assets::service::register_addon;
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -24,8 +24,7 @@ pub fn init() {}
 pub fn install() {}
 
 pub async fn add(name: &str) -> Result<()> {
-    find_addon(name).await?;
-    Ok(())
+    register_addon(name).await
 }
 
-pub fn rm(name: &str) {}
+pub fn rm(_name: &str) {}

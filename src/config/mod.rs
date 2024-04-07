@@ -33,6 +33,13 @@ impl Config {
         Ok(de::from_str(&string)?)
     }
 
+    pub fn init() -> Result<()> {
+        let json_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
+        std::fs::write(json_path, "")?;
+
+        Ok(())
+    }
+
     pub fn add_asset(&mut self, asset: Asset) -> Result<()> {
         match self.assets.contains(&asset) {
             true => Err(anyhow!(ConfigError::FailedAdd(format!(

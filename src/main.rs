@@ -11,9 +11,9 @@ async fn main() -> Result<()> {
             Ok(()) => println!("Successfully added addon."),
             Err(e) => println!("{e}"),
         },
-        Commands::Init => init(),
-        Commands::Install => install(),
-        Commands::Rm { name } => rm(name),
+        Commands::Init => init()?,
+        Commands::Install => install()?,
+        Commands::Rm { name } => rm(name)?,
     }
 
     Ok(())

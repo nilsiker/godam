@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{de, ser};
 use thiserror::Error;
 
-use crate::assets::Asset;
+use crate::{assets::Asset, godot};
 
-const CONFIG_RELATIVE_PATH: &'static str = "./gaddon.json";
+const CONFIG_RELATIVE_PATH: &str = "./godam.json";
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -34,8 +34,17 @@ impl Config {
     }
 
     pub fn init() -> Result<()> {
+        let version = godot::get_project_version()?;
+
+        let config = Config {
+            assets: vec![],
+            godot_version: version,
+        };
+
+        let contents = ser::to_string_pretty(&config)?;
+
         let json_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
-        std::fs::write(json_path, "")?;
+        std::fs::write(json_path, contents)?;
 
         Ok(())
     }
@@ -68,6 +77,6 @@ impl Config {
     fn save(&self) -> Result<()> {
         let json_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
         let str = ser::to_string_pretty(self)?;
-        Ok(std::fs::write(json_path, &str)?)
+        Ok(std::fs::write(json_path, str)?)
     }
 }

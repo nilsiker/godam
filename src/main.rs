@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use gaddon::{commands::*, Cli};
+use godam::{commands::*, Cli};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -12,7 +12,7 @@ async fn main() -> Result<()> {
             Err(e) => println!("{e}"),
         },
         Commands::Init => init()?,
-        Commands::Install => install()?,
+        Commands::Install => install().await?,
         Commands::Rm { name } => rm(name)?,
     }
 

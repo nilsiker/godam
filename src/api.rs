@@ -19,3 +19,9 @@ pub async fn get_assets(name: &str, version: &Version) -> Result<Vec<Asset>> {
     let godot_response = response.json::<AssetResponse>().await?;
     Ok(godot_response.result)
 }
+
+pub async fn get_asset(id: &str) -> Result<Asset> {
+    let request_url = format!("https://godotengine.org/asset-library/api/asset/{id}");
+    let asset = reqwest::get(&request_url).await?.json::<Asset>().await?;
+    Ok(asset)
+}

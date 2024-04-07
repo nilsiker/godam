@@ -17,4 +17,7 @@ pub enum AssetError {
 pub struct Asset {
     pub asset_id: String,
     pub title: String,
+    pub browse_url: Option<String>,
+    pub download_commit: Option<String>,
 }
+

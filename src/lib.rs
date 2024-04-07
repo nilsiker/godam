@@ -2,6 +2,7 @@ pub mod api;
 pub mod assets;
 pub mod commands;
 pub mod config;
+pub mod godot;
 
 use clap::Parser;
 use commands::Commands;

@@ -2,7 +2,7 @@
 
 ![rust 1.77](https://img.shields.io/badge/rust-1.77-orange)
 
-> ☝ Godam does not yet support install addons to Godot project.
+> 💡 Godam does not yet support install addons to Godot project.
 >
 > This is a prioritized planned feature.
 
@@ -10,11 +10,11 @@ Godam (**God**ot **A**sset **M**anager) is a minimal command-line tool to manage
 
 This is a work-in-progress project, meaning that crucial features are currently missing from the tool.
 
-## Roadmap
+## Roadmap 🗺
 
 - **Feature:** Install command properly installs addons to the Godot project.
 
-## How it works
+## How it works ⚙
 
 Initializing your Godot project with `godam init` creates a `godam.json` file that registers your Godot version and starts keeping track of your addons.
 
@@ -22,7 +22,7 @@ You can add and remove addons using `godam add <name>` and `godam rm <name>`.
 
 To install your addons, use `godam install`.
 
-## Features
+## Features ✨
 
 This section outlines the current features available.
 

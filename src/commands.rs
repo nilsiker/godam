@@ -1,11 +1,13 @@
+use std::path::Path;
+
 use anyhow::Result;
 use clap::Subcommand;
 
 use crate::{
+    addons,
     api::get_asset,
     assets::{try_find_asset_unambiguously, Asset},
     config::Config,
-    git,
 };
 
 #[derive(Subcommand)]
@@ -31,7 +33,6 @@ pub fn init() -> Result<()> {
     } else {
         println!("Project already initialized. Try adding assets using godam add <name>");
     }
-
     Ok(())
 }
 
@@ -39,19 +40,15 @@ pub async fn install() -> Result<()> {
     let config = Config::get()?;
 
     for asset in config.assets {
-        let Asset {
-            browse_url,
-            download_commit,
-            ..
-        } = get_asset(&asset.asset_id).await?;
-
-        let (Some(url), Some(commit)) = (browse_url, download_commit) else {
-            println!("[{}] No url returned. Skipping...", asset.title);
-            continue;
-        };
-
-        git::clone(&asset.title, &url, &commit)?;
-        println!("Successfully cloned {}", asset.title);
+        println!("Downloading {}", asset.title);
+        let Asset { download_url, .. } = get_asset(&asset.asset_id).await?;
+        match download_url {
+            Some(url) => addons::download_addon(&url, Path::new(".")).await?,
+            None => panic!(
+                "faulty config file, missing download url for addon {}",
+                asset.title
+            ),
+        }
     }
 
     Ok(())

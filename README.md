@@ -31,7 +31,7 @@ This section outlines the current features available.
   
 ## How it works ❔
 
-GODAM scaffolds your Godot project folder with a `godam.toml` file, a `.godam` cache folder and a `.gitignore` to your `addons` folder. The .gitignore sets up your git to ignore all contents of the addon folder except for the TOML configuration file.
+GODAM scaffolds your Godot project folder, creating a `godam.toml` file, a `.godam` cache folder and a `.gitignore` in your `addons` folder. The .gitignore sets up your git to ignore all contents of the addon folder except for the TOML configuration file.
 
 When adding an asset using `godam install <ID>` the following happens:
 

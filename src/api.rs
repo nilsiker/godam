@@ -6,10 +6,10 @@ use crate::assets::Asset;
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct AssetResponse {
-    result: Vec<Asset>,
+    result: Asset,
 }
 
-pub async fn get_assets(name: &str, version: &Version) -> Result<Vec<Asset>> {
+pub async fn get_asset_by_name(name: &str, version: &Version) -> Result<Asset> {
     let version_str = version.to_string();
     let request_url = format!(
         "https://godotengine.org/asset-library/api/asset?filter={name}&godot_version={version_str}&max_results=1"
@@ -17,10 +17,11 @@ pub async fn get_assets(name: &str, version: &Version) -> Result<Vec<Asset>> {
     let response = reqwest::get(&request_url).await?;
 
     let godot_response = response.json::<AssetResponse>().await?;
-    Ok(godot_response.result)
+
+    get_asset_by_id(&godot_response.result.asset_id).await
 }
 
-pub async fn get_asset(id: &str) -> Result<Asset> {
+pub async fn get_asset_by_id(id: &str) -> Result<Asset> {
     let request_url = format!("https://godotengine.org/asset-library/api/asset/{id}");
     let asset = reqwest::get(&request_url).await?.json::<Asset>().await?;
     Ok(asset)

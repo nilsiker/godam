@@ -1,6 +1,6 @@
 # godam
 
-![rust 1.81](https://img.shields.io/badge/rust-1.77-orange)
+![rust 1.81](https://img.shields.io/badge/rust-1.81-orange)
 
 > 💡 Godam is my personal tool for installing addons from the Godot AssetLib in a CLI environment (such as a CD pipeline).
 > 
@@ -22,7 +22,7 @@ This is a personal work-in-progress project, making its use case very narrow.
 
 ## How it works ⚙️
 
-Initializing your Godot project with `godam init` creates a `godam.json` file that registers your Godot version and starts keeping track of your addons.
+Initializing your Godot project with `godam init` creates a `godam.toml` file that registers your Godot version and starts keeping track of your addons.
 
 You can add and remove addons using `godam add <name>` and `godam rm <name>`.
 

@@ -1,9 +1,9 @@
-pub mod addons;
 pub mod api;
 pub mod assets;
 pub mod commands;
 pub mod config;
 pub mod godot;
+pub mod cache;
 
 use clap::Parser;
 use commands::Commands;

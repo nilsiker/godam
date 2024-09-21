@@ -8,7 +8,7 @@ use crate::{assets::Asset, godot};
 const ADDONS_RELATIVE_PATH: &str = "./addons";
 const CONFIG_RELATIVE_PATH: &str = "./addons/godam.toml";
 const ADDONS_GITIGNORE_PATH: &str = "./addons/.gitignore";
-const ADDONS_GITIGNORE_CONTENT: &str = "*\n!.gitignore\n!godam.toml";
+const ADDONS_GITIGNORE_CONTENT: &str = "*\n!.gitignore\n!godam.toml\n.godam";
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -43,7 +43,7 @@ impl Config {
             godot_version: version,
         };
 
-        let contents = toml::to_string_pretty(&config)?;
+        let contents = toml::to_string(&config)?;
 
         if !std::fs::exists(ADDONS_RELATIVE_PATH)? {
             std::fs::create_dir(ADDONS_RELATIVE_PATH)?;

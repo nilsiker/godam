@@ -1,5 +1,5 @@
 use std::{
-    io::{Read, Seek},
+    fs::File,
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -9,28 +9,61 @@ use indicatif::{ProgressBar, ProgressStyle};
 use thiserror::Error;
 use zip::ZipArchive;
 
+use crate::assets::Asset;
+
+const CACHE_PATH: &str = "./addons/.godam";
+
 #[derive(Error, Debug)]
-pub enum AddonError {
-    #[error("Could not find addon root folder.")]
-    RootNotFound,
+enum CacheError {
+    #[error("Asset zip was not found in cache.")]
+    FileOpenFailed,
+    #[error("Asset zip could not be read - file is possibly corrupted.")]
+    ZipReadFailed,
 }
 
-pub async fn download_addon(addon_name: &str, url: &str) -> Result<()> {
-    let resp = reqwest::get(url).await?;
-    let bytes = resp.bytes().await?;
-    let cursor = std::io::Cursor::new(bytes);
-    let archive = zip::read::ZipArchive::new(cursor)?;
-
-    unpack_addon(addon_name, archive)?;
+pub fn init() -> Result<()> {
+    std::fs::create_dir_all(CACHE_PATH)?;
     Ok(())
 }
 
-fn unpack_addon<R: Read + Seek>(addon_name: &str, mut archive: ZipArchive<R>) -> Result<()> {
+pub fn get(asset: &Asset) -> Result<ZipArchive<File>> {
+    let file_path = PathBuf::from_str(CACHE_PATH)?
+        .join(&asset.asset_id)
+        .with_extension("zip");
+
+    let file = File::open(file_path).map_err(|_| CacheError::FileOpenFailed)?;
+    let archive = zip::read::ZipArchive::new(file).map_err(|_| CacheError::ZipReadFailed)?;
+
+    Ok(archive)
+}
+
+pub async fn download_asset(asset: &Asset) -> Result<ZipArchive<File>> {
+    let Asset {
+        download_url,
+        asset_id,
+        ..
+    } = asset;
+
+    let resp = reqwest::get(download_url).await?;
+    let bytes = resp.bytes().await?;
+
+    let mut zip_path = PathBuf::from_str(CACHE_PATH)?.join(asset_id);
+
+    zip_path.set_extension("zip");
+
+    std::fs::write(zip_path, bytes)?;
+
+    get(asset)
+}
+
+pub fn unpack_asset(asset: &Asset) -> Result<()> {
+    let mut archive = get(asset)?;
+
     let progress = ProgressBar::new(archive.len() as u64)
         .with_style(ProgressStyle::with_template(
             "{msg} {bar:40.cyan/blue} {pos:>7}/{len:7}",
         )?)
-        .with_message(format!("Installing {addon_name}: "));
+        .with_message(format!("Installing {}: ", asset.title));
 
     for i in 0..archive.len() {
         progress.inc(1);
@@ -69,7 +102,6 @@ fn unpack_addon<R: Read + Seek>(addon_name: &str, mut archive: ZipArchive<R>) ->
             }
         }
     }
-    progress.finish_with_message(format!("Installed {addon_name}"));
+    progress.finish_with_message(format!("Installed {}", asset.title));
     Ok(())
 }
-

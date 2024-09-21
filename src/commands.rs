@@ -1,69 +1,24 @@
-use anyhow::Result;
-use clap::Subcommand;
+pub mod init;
+pub mod install;
 
-use crate::{
-    addons,
-    api::get_asset,
-    assets::{try_find_asset_unambiguously, Asset},
-    config::Config,
-};
+use clap::Subcommand;
 
 #[derive(Subcommand)]
 pub enum Commands {
+    #[command()]
     /// Initializes your Godot project to use godam as your addon manager
     Init,
-    /// Installs addons specified in the godam.toml
-    #[command()]
-    Install,
-    /// Adds and installs the specified addon to your Godot project
-    Add {
-        name: String,
+    /// Installs the specified addon to your Godot project, adding it to the godam configuration.
+    #[command(alias = "i")]
+    Install {
+        /// The name of the asset you want to install
+        #[arg(index = 1)]
+        name: Option<String>,
     },
-    Rm {
-        name: String,
-    },
-}
-
-pub fn init() -> Result<()> {
-    if Config::get().is_err() {
-        Config::init()?;
-        println!("Project initialized. Next, add assets using godam add <name>");
-    } else {
-        println!("Project already initialized. Try adding assets using godam add <name>");
-    }
-    Ok(())
-}
-
-pub async fn install() -> Result<()> {
-    let config = Config::get()?;
-
-    for asset in config.assets {
-        println!("Downloading {}...", asset.title);
-        let Asset {
-            title,
-            download_url,
-            ..
-        } = get_asset(&asset.asset_id).await?;
-        match download_url {
-            Some(url) => addons::download_addon(&title, &url).await?,
-            None => panic!(
-                "faulty config file, missing download url for addon {}",
-                asset.title
-            ),
-        }
-    }
-
-    Ok(())
-}
-
-pub async fn add(name: &str) -> Result<()> {
-    let mut config = Config::get()?;
-    let asset = try_find_asset_unambiguously(name, &config.godot_version).await?;
-    config.add_asset(asset)
-}
-
-pub fn rm(name: &str) -> Result<()> {
-    let mut config = Config::get()?;
-    config.remove_asset(name)?;
-    Ok(())
+    /// Uninstalls the specified addon from your Godot project, removing it from the godam configuration.
+    #[command(alias = "u")]
+    Uninstall,
+    /// Cleans the godam cache folder
+    #[command(alias = "c")]
+    Clean,
 }

@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{cache, config::Config};
+use crate::config::Config;
 
 pub fn run() -> Result<()> {
     let config = Config::get()?;
@@ -12,7 +12,7 @@ pub fn run() -> Result<()> {
             asset.asset_id,
             asset.title,
             match asset.install_folder {
-                Some(p) => "Yes",
+                Some(_) => "Yes",
                 None => "No",
             }
         )

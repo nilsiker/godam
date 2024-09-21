@@ -23,8 +23,8 @@ pub async fn run(id: &Option<String>) -> Result<()> {
             continue;
         }
 
-        if cache::get(&asset).is_err() {
-            cache::download_asset(&asset).await?;
+        if cache::get(asset).is_err() {
+            cache::download_asset(asset).await?;
         } else {
             println!("Found cached {}", asset.title);
         }

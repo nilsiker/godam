@@ -87,11 +87,9 @@ pub fn install(asset: &Asset) -> Result<String> {
             }
         }
 
-        if !zip_path.exists() {
-            if !zip_path.to_string_lossy().ends_with("/") {
-                let mut out_file = std::fs::File::create(zip_path)?;
-                std::io::copy(&mut file, &mut out_file)?;
-            }
+        if !zip_path.exists() && !zip_path.to_string_lossy().ends_with("/") {
+            let mut out_file = std::fs::File::create(zip_path)?;
+            std::io::copy(&mut file, &mut out_file)?;
         }
     }
     progress.finish_with_message(format!("Installed {}", asset.title));

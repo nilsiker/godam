@@ -8,7 +8,7 @@ async fn main() -> Result<()> {
 
     match &cli.command {
         Commands::Init => init::run()?,
-        Commands::Search { name } => search::run(&name).await?,
+        Commands::Search { name } => search::run(name).await?,
         Commands::Install { name } => install::run(name).await?,
         Commands::Uninstall { name } => uninstall::run(name).await?,
         Commands::List => list::run()?,

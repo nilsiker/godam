@@ -22,9 +22,7 @@ pub fn init() -> Result<()> {
 }
 
 pub fn get(asset: &Asset) -> Result<ZipArchive<File>> {
-    let file_path = PathBuf::from_str(CACHE_PATH)?
-        .join(&asset.asset_id)
-        .with_extension("zip");
+    let file_path = cache_zip_path(&asset.asset_id)?;
 
     let file = File::open(file_path).map_err(|_| CacheError::FileOpenFailed)?;
     let archive = zip::read::ZipArchive::new(file).map_err(|_| CacheError::ZipReadFailed)?;
@@ -44,9 +42,7 @@ pub async fn download_asset(asset: &Asset) -> Result<ZipArchive<File>> {
     let resp = reqwest::get(download_url).await?;
     let bytes = resp.bytes().await?;
 
-    let zip_path = PathBuf::from_str(CACHE_PATH)?
-        .join(asset_id)
-        .with_extension("zip");
+    let zip_path = cache_zip_path(asset_id)?;
 
     std::fs::write(zip_path, bytes)?;
 

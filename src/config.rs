@@ -1,12 +1,14 @@
 use anyhow::{anyhow, Result};
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use serde_json::{de, ser};
 use thiserror::Error;
 
 use crate::{assets::Asset, godot};
 
-const CONFIG_RELATIVE_PATH: &str = "./godam.json";
+const ADDONS_RELATIVE_PATH: &str = "./addons";
+const CONFIG_RELATIVE_PATH: &str = "./addons/godam.toml";
+const ADDONS_GITIGNORE_PATH: &str = "./addons/.gitignore";
+const ADDONS_GITIGNORE_CONTENT: &str = "*\n!.gitignore\n!godam.toml";
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -27,10 +29,10 @@ pub struct Config {
 }
 impl Config {
     pub fn get() -> Result<Self> {
-        let json_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
-        let string = std::fs::read_to_string(json_path).map_err(|_| ConfigError::NotFound)?;
+        let toml_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
+        let string = std::fs::read_to_string(toml_path).map_err(|_| ConfigError::NotFound)?;
 
-        Ok(de::from_str(&string)?)
+        Ok(toml::from_str(&string)?)
     }
 
     pub fn init() -> Result<()> {
@@ -41,10 +43,13 @@ impl Config {
             godot_version: version,
         };
 
-        let contents = ser::to_string_pretty(&config)?;
+        let contents = toml::to_string_pretty(&config)?;
 
-        let json_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
-        std::fs::write(json_path, contents)?;
+        if !std::fs::exists(ADDONS_RELATIVE_PATH)? {
+            std::fs::create_dir(ADDONS_RELATIVE_PATH)?;
+        }
+        std::fs::write(CONFIG_RELATIVE_PATH, contents)?;
+        std::fs::write(ADDONS_GITIGNORE_PATH, ADDONS_GITIGNORE_CONTENT)?;
 
         Ok(())
     }
@@ -75,8 +80,8 @@ impl Config {
     }
 
     fn save(&self) -> Result<()> {
-        let json_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
-        let str = ser::to_string_pretty(self)?;
-        Ok(std::fs::write(json_path, str)?)
+        let toml_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
+        let str = toml::to_string_pretty(self)?;
+        Ok(std::fs::write(toml_path, str)?)
     }
 }

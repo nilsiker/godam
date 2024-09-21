@@ -47,7 +47,7 @@ When adding an asset using `godam install <ID>` the following happens:
 
 ## Example ⚙️
 
-To install LimboAI with GODAM, perform the following steps:
+Using GODAM, let us install [LimboAI for Godot 4.3](https://godotengine.org/asset-library/asset/3228):
 
 1. `cd` to your Godot project directory (this is were your `project.godot` file resides)
    

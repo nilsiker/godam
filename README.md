@@ -2,17 +2,15 @@
 
 ![rust 1.81](https://img.shields.io/badge/rust-1.81-orange)
 
-> 💡 godam is my personal tool for installing assets from the Godot AssetLib in a CLI environment (such as a CD pipeline).
+> 💡 This CLI is my personal tool for installing assets from the Godot AssetLib in a command-line environment.
 > 
-> Because of this, the CLI has very limited functionality.
+> Because of this, its use case is strictly scoped to my current needs.
 >
 > Feel free to raise issues and provide feedback!
 
 GODAM (**God**ot **A**sset **M**anager) is a minimal command-line tool to manage assets from the Godot Asset Library. 
 
 The CLI aims to operate in the same way the Godot Editor downloads and installs assets from the Godot Asset Library. The objective is to allow developers to fully omit addons from their VCS, and keep track of them using a declarative configuration file (similar to `Cargo.toml` or `package.json`)
-
-This is a personal work-in-progress project - its use case is strictly scoped to my current needs.
 
 ## Features ✨
 

@@ -54,23 +54,27 @@ When adding an asset using `godam install <ID>` the following happens:
 
 Using GODAM, let us install [LimboAI for Godot 4.3](https://godotengine.org/asset-library/asset/3228):
 
-1. `cd` to your Godot project directory (this is were your `project.godot` file resides)
-   
-2. Initialize your Godot project with `godam init`
 
-3. Look up Godot Asset Library IDs using `godam search LimboAI`
+1. If you haven't already, install the GODAM executable using `cargo install --git https://github.com/nilsiker/godam`
 
-4. Install the asset using `godam install <ID RETURNED BY STEP 3>`
+2. `cd` to your Godot project directory (this is were your `project.godot` file resides)   
 
-5. List GODAM-managed assets using `godam list`
+3. Initialize your Godot project with `godam init`
+
+4. Look up Godot Asset Library IDs using `godam search LimboAI`
+
+5. Install the asset using `godam install <ID RETURNED BY STEP 3>`
+
+6. List GODAM-managed assets using `godam list`
  
-6. Install all managed assets using `godam install`
+7. Install all managed assets using `godam install`
   
-7. Clean the cache using `godam clean` 
+8. Clean the cache using `godam clean` 
 
 
 # Future ideas 🔮
 
+- Release builds for Windows, macOS and Linux
 - [indicatif](https://github.com/console-rs/indicatif) integration for more pleasing console printouts
 - Multi-threaded downloads and installs
 - Support asset version freeze and upgrades

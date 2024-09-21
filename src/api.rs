@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::assets::{Asset, AssetSearchResult};
 
-
 #[derive(Deserialize, Serialize, Clone)]
 pub struct AssetResponse {
     result: Vec<Asset>,
@@ -23,7 +22,7 @@ pub async fn get_assets_by_name(name: &str, version: &Version) -> Result<Vec<Ass
     let response = reqwest::get(&request_url).await?;
 
     let asset_search_response = response.json::<AssetSearchResponse>().await?;
-    
+
     Ok(asset_search_response.result)
 }
 

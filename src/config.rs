@@ -1,4 +1,3 @@
-
 use anyhow::{anyhow, Result};
 use semver::Version;
 use serde::{Deserialize, Serialize};

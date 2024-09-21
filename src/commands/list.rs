@@ -8,13 +8,10 @@ pub fn run() -> Result<()> {
     println!("\nGodam is managing {} assets\n", config.assets.len());
     for asset in config.assets {
         println!(
-            "- {}\n\tTitle: {}\n\tInstalled: {}\n",
+            "- {}\n\tTitle: {}\n\tInstall folder: {}\n",
             asset.asset_id,
             asset.title,
-            match asset.install_folder {
-                Some(_) => "Yes",
-                None => "No",
-            }
+            asset.install_folder.unwrap_or("not installed".to_string())
         )
     }
 

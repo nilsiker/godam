@@ -34,8 +34,8 @@ pub enum Commands {
         name: String,
     },
     /// Lists all assets being managed by Godam
-    #[command(alias = "ls", alias="l")]
-    /// 
+    #[command(alias = "ls", alias = "l")]
+    ///
     List,
     /// Cleans the godam cache folder
     #[command(alias = "c")]

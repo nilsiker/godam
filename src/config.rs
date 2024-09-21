@@ -5,7 +5,10 @@ use thiserror::Error;
 
 use crate::{assets::Asset, godot};
 
+const ADDONS_RELATIVE_PATH: &str = "./addons";
 const CONFIG_RELATIVE_PATH: &str = "./addons/godam.toml";
+const ADDONS_GITIGNORE_PATH: &str = "./addons/.gitignore";
+const ADDONS_GITIGNORE_CONTENT: &str = "*\n!.gitignore\n!godam.toml";
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -42,11 +45,11 @@ impl Config {
 
         let contents = toml::to_string_pretty(&config)?;
 
-        let toml_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
-        if !std::fs::exists("./addons")? {
-            std::fs::create_dir("./addons")?;
+        if !std::fs::exists(ADDONS_RELATIVE_PATH)? {
+            std::fs::create_dir(ADDONS_RELATIVE_PATH)?;
         }
-        std::fs::write(toml_path, contents)?;
+        std::fs::write(CONFIG_RELATIVE_PATH, contents)?;
+        std::fs::write(ADDONS_GITIGNORE_PATH, ADDONS_GITIGNORE_CONTENT)?;
 
         Ok(())
     }

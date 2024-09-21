@@ -1,18 +1,24 @@
 # godam
 
-![rust 1.77](https://img.shields.io/badge/rust-1.77-orange)
+![rust 1.81](https://img.shields.io/badge/rust-1.77-orange)
 
-> 💡 Godam does not yet support installing addons to Godot project.
+> 💡 Godam is my personal tool for installing addons from the Godot AssetLib in a CLI environment (such as a CD pipeline).
+> 
+> Because of this, the CLI has very limited functionality.
 >
-> This is a prioritized planned feature.
+> Feel free to raise issues, formulate solutions and contribute!
 
-Godam (**God**ot **A**sset **M**anager) is a minimal command-line tool to manage addons from the Godot Asset Library.
+Godam (**God**ot **A**sset **M**anager) is a minimal command-line tool to manage addons from the Godot Asset Library. 
 
-This is a work-in-progress project, meaning that crucial features are currently missing from the tool.
+The objective is to support downloading and installing addons from the Godot Asset Library in the same manner as the Godot client.
+
+This is a personal work-in-progress project, making its use case very narrow.
 
 ## Roadmap 🗺️
 
-- **Feature:** Install command properly installs addons to the Godot project.
+- **Feature:** Cache downloaded addon zips in a **tmp** folder
+  - **Feature:** Clean `tmp` cache folder
+- **Feature:** Uninstall addons using **godam**
 
 ## How it works ⚙️
 
@@ -27,9 +33,7 @@ To install your addons, use `godam install`.
 This section outlines the current features available.
 
 - Register addons using `godam add <name>`
-  - If multiple addons are found, possible candidates are listed by their complete names.
-  - If one singular addon is found, it is added to the `godam.json` file.
+  - If an addon is found, it is added to the `godam.toml` file.
+  - If multiple addons are found, the top result returned from the API is used.
 - Unregister addons using `godam rm <name>`
   - If the name exactly matches the name of a registered addon, it is removed from the `godam.json` file.
-- Clone addon repositories to a `cache` folder using `godam install`
-  - The clones repositories are checked out to the specified `download_commit` from the Godot Asset Library API.

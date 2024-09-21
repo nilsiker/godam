@@ -34,7 +34,7 @@ pub async fn try_find_asset_unambiguously(
             filter: name.to_string(),
             candidates: assets.into_iter().fold(String::new(), |mut acc, asset| {
                 acc += "\n\t - ";
-                acc + (&asset.title)
+                acc + (&asset.title) + " (id: " + &asset.asset_id + ")"
             })
         })),
     }

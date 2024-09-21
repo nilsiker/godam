@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use anyhow::Result;
 use clap::Subcommand;
 
@@ -40,10 +38,14 @@ pub async fn install() -> Result<()> {
     let config = Config::get()?;
 
     for asset in config.assets {
-        println!("Downloading {}", asset.title);
-        let Asset { download_url, .. } = get_asset(&asset.asset_id).await?;
+        println!("Downloading {}...", asset.title);
+        let Asset {
+            title,
+            download_url,
+            ..
+        } = get_asset(&asset.asset_id).await?;
         match download_url {
-            Some(url) => addons::download_addon(&url, Path::new(".")).await?,
+            Some(url) => addons::download_addon(&title, &url).await?,
             None => panic!(
                 "faulty config file, missing download url for addon {}",
                 asset.title

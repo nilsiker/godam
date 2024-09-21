@@ -12,7 +12,7 @@ pub struct AssetResponse {
 pub async fn get_assets(name: &str, version: &Version) -> Result<Vec<Asset>> {
     let version_str = version.to_string();
     let request_url = format!(
-        "https://godotengine.org/asset-library/api/asset?filter={name}&godot_version={version_str}"
+        "https://godotengine.org/asset-library/api/asset?filter={name}&godot_version={version_str}&max_results=1"
     );
     let response = reqwest::get(&request_url).await?;
 

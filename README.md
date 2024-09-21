@@ -2,6 +2,7 @@
 
 ![rust 1.81](https://img.shields.io/badge/rust-1.81-orange)
 
+
 > 💡 This CLI is my personal tool for installing assets from the Godot AssetLib in a command-line environment.
 > 
 > Because of this, its use case is strictly scoped to my current needs.
@@ -11,6 +12,10 @@
 GODAM (**God**ot **A**sset **M**anager) is a minimal command-line tool to manage assets from the Godot Asset Library. 
 
 The CLI aims to operate in the same way the Godot Editor downloads and installs assets from the Godot Asset Library. The objective is to allow developers to fully omit addons from their VCS, and keep track of them using a declarative configuration file (similar to `Cargo.toml` or `package.json`)
+
+> ⚠️ GODAM manages asset files on your computer that are scoped to relative paths under your Godot project folder. With that said, I make no guarantees I haven't made errors in my file handling logic.
+>
+> Use at your own discretion!
 
 ## Features ✨
 
@@ -64,5 +69,10 @@ Using GODAM, let us install [LimboAI for Godot 4.3](https://godotengine.org/asse
 
 # Future ideas 🔮
 
-- Upgrading assets
-- Stabilize codebase, removing expects and streamlining messy portions (such as the `install_folder` lookup)
+- [indicatif](https://github.com/console-rs/indicatif) integration for more pleasing console printouts
+- Multi-threaded downloads and installs
+- Support asset version freeze and upgrades
+- Improve codebase, enhancing maintainability and readability. This includes:
+  - Removing expects
+  - Giving modules clearer ares of responsibility
+  - Refactoring messy portions (such as the `install_folder` lookup)

@@ -31,6 +31,10 @@ pub fn get(asset: &Asset) -> Result<ZipArchive<File>> {
 }
 
 pub async fn download_asset(asset: &Asset) -> Result<ZipArchive<File>> {
+    if !std::fs::exists(CACHE_PATH)? {
+        init()?;
+    }
+
     let Asset {
         download_url,
         asset_id,

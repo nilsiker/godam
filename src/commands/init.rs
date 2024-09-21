@@ -8,7 +8,7 @@ pub fn run() -> Result<()> {
         cache::init()?;
         println!("Project initialized. Next, add assets using godam add <name>");
     } else {
-        println!("Project already initialized. Try adding assets using godam add <name>");
+        println!("Project already initialized. Try adding assets using godam install <name>");
     }
     Ok(())
 }

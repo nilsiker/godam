@@ -1,3 +1,4 @@
+
 use anyhow::{anyhow, Result};
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -5,7 +6,7 @@ use thiserror::Error;
 
 use crate::{assets::Asset, godot};
 
-const ADDONS_RELATIVE_PATH: &str = "./addons";
+pub const ADDONS_RELATIVE_PATH: &str = "./addons";
 const CONFIG_RELATIVE_PATH: &str = "./addons/godam.toml";
 const ADDONS_GITIGNORE_PATH: &str = "./addons/.gitignore";
 const ADDONS_GITIGNORE_CONTENT: &str = "*\n!.gitignore\n!godam.toml\n.godam";
@@ -20,6 +21,8 @@ pub enum ConfigError {
     FailedRemove(String),
     #[error("Could not add asset. {0}.")]
     FailedAdd(String),
+    #[error("Could not uninstall asset. {0}.")]
+    FailedUninstall(String),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -33,6 +36,14 @@ impl Config {
         let string = std::fs::read_to_string(toml_path).map_err(|_| ConfigError::NotFound)?;
 
         Ok(toml::from_str(&string)?)
+    }
+
+    pub fn asset(&self, id: &str) -> Option<&Asset> {
+        self.assets.iter().find(|a| a.asset_id == id)
+    }
+
+    fn asset_mut(&mut self, id: &str) -> Option<&mut Asset> {
+        self.assets.iter_mut().find(|a| a.asset_id == id)
     }
 
     pub fn init() -> Result<()> {
@@ -55,33 +66,42 @@ impl Config {
     }
 
     pub fn add_asset(&mut self, asset: Asset) -> Result<()> {
-        match self.assets.contains(&asset) {
-            true => Err(anyhow!(ConfigError::FailedAdd(format!(
-                "{} is already registered",
-                asset.title
-            )))),
-            false => {
-                self.assets.push(asset);
-                self.save()
-            }
+        if self.assets.contains(&asset) {
+            println!("Asset is already registered. Skipping...");
+        } else {
+            self.assets.push(asset);
+            self.save()?
         }
+        Ok(())
     }
 
-    pub fn remove_asset(&mut self, name: &str) -> Result<()> {
-        match self.assets.iter().position(|asset| asset.title == name) {
+    pub fn remove_asset(&mut self, id: &str) -> Result<()> {
+        match self.assets.iter().position(|asset| asset.asset_id == id) {
             Some(index) => {
                 self.assets.remove(index);
                 self.save()
             }
             None => Err(anyhow!(ConfigError::FailedRemove(format!(
-                "No asset with name {name} found."
+                "No asset with id {id} found."
             )))),
         }
     }
 
-    fn save(&self) -> Result<()> {
+    pub fn save(&self) -> Result<()> {
         let toml_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
         let str = toml::to_string_pretty(self)?;
         Ok(std::fs::write(toml_path, str)?)
+    }
+
+    pub fn register_install_folder(&mut self, id: &str, install_folder: &str) {
+        match self.asset_mut(id) {
+            Some(asset) => asset.install_folder = Some(install_folder.to_string()),
+            None => println!("Asset ID not found in configuration"),
+        }
+        self.save().expect("can save config");
+    }
+
+    pub fn contains_asset(&self, id: &str) -> bool {
+        self.asset(id).is_some()
     }
 }

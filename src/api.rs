@@ -2,23 +2,29 @@ use anyhow::Result;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::assets::Asset;
+use crate::assets::{Asset, AssetSearchResult};
+
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct AssetResponse {
-    result: Asset,
+    result: Vec<Asset>,
 }
 
-pub async fn get_asset_by_name(name: &str, version: &Version) -> Result<Asset> {
+#[derive(Deserialize, Serialize, Clone)]
+pub struct AssetSearchResponse {
+    result: Vec<AssetSearchResult>,
+}
+
+pub async fn get_assets_by_name(name: &str, version: &Version) -> Result<Vec<AssetSearchResult>> {
     let version_str = version.to_string();
     let request_url = format!(
-        "https://godotengine.org/asset-library/api/asset?filter={name}&godot_version={version_str}&max_results=1"
+        "https://godotengine.org/asset-library/api/asset?filter={name}&godot_version={version_str}"
     );
     let response = reqwest::get(&request_url).await?;
 
-    let godot_response = response.json::<AssetResponse>().await?;
-
-    get_asset_by_id(&godot_response.result.asset_id).await
+    let asset_search_response = response.json::<AssetSearchResponse>().await?;
+    
+    Ok(asset_search_response.result)
 }
 
 pub async fn get_asset_by_id(id: &str) -> Result<Asset> {

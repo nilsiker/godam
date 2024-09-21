@@ -1,11 +1,6 @@
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::{fs::File, path::PathBuf, str::FromStr};
 
 use anyhow::Result;
-use indicatif::{ProgressBar, ProgressStyle};
 use thiserror::Error;
 use zip::ZipArchive;
 
@@ -44,64 +39,46 @@ pub async fn download_asset(asset: &Asset) -> Result<ZipArchive<File>> {
         ..
     } = asset;
 
+    println!("Downloading {}...", asset.title);
+
     let resp = reqwest::get(download_url).await?;
     let bytes = resp.bytes().await?;
 
-    let mut zip_path = PathBuf::from_str(CACHE_PATH)?.join(asset_id);
-
-    zip_path.set_extension("zip");
+    let zip_path = PathBuf::from_str(CACHE_PATH)?
+        .join(asset_id)
+        .with_extension("zip");
 
     std::fs::write(zip_path, bytes)?;
 
+    println!("Downloaded {}!", asset.title);
     get(asset)
 }
 
-pub fn unpack_asset(asset: &Asset) -> Result<()> {
-    let mut archive = get(asset)?;
+pub fn clean() -> Result<()> {
+    let cache_path = PathBuf::from_str(CACHE_PATH)?;
+    let cache_dir = cache_path.read_dir()?;
 
-    let progress = ProgressBar::new(archive.len() as u64)
-        .with_style(ProgressStyle::with_template(
-            "{msg} {bar:40.cyan/blue} {pos:>7}/{len:7}",
-        )?)
-        .with_message(format!("Installing {}: ", asset.title));
+    let mut removed = vec![];
 
-    for i in 0..archive.len() {
-        progress.inc(1);
-
-        let mut file = archive.by_index(i)?;
-
-        let mut zip_path = Path::new(file.name()).to_path_buf();
-
-        // Trim paths so that it begins with "addons" directory
-        if !zip_path.starts_with("addons") {
-            let is_dir = zip_path.to_string_lossy().ends_with("/");
-            let mut comps = zip_path.components();
-            comps.next();
-
-            zip_path = comps.as_path().to_path_buf();
-            if is_dir {
-                let str = zip_path.to_string_lossy() + "/";
-                zip_path = PathBuf::from_str(&str)?;
+    for entry in cache_dir {
+        match entry {
+            Ok(entry) => {
+                std::fs::remove_file(entry.path())?;
+                removed.push(entry.file_name());
             }
-        }
-
-        if !zip_path.starts_with("addons") {
-            continue;
-        }
-
-        if let Some(parent) = zip_path.parent() {
-            if !std::fs::exists(parent)? {
-                std::fs::create_dir_all(parent)?;
-            }
-        }
-
-        if !zip_path.exists() {
-            if !zip_path.to_string_lossy().ends_with("/") {
-                let mut out_file = std::fs::File::create(zip_path)?;
-                std::io::copy(&mut file, &mut out_file)?;
-            }
+            Err(_) => panic!("should not happen"),
         }
     }
-    progress.finish_with_message(format!("Installed {}", asset.title));
+    println!("removed {} cached assets", removed.len());
+    for path in removed {
+        println!("- {}", path.into_string().expect("ok path"));
+    }
     Ok(())
+}
+
+fn cache_zip_path(id: &str) -> Result<PathBuf> {
+    let buf = PathBuf::from_str(CACHE_PATH)?
+        .join(id)
+        .with_extension("zip");
+    Ok(buf)
 }

@@ -1,10 +1,12 @@
+use std::{path::PathBuf, str::FromStr};
+
 use anyhow::Result;
 
 use crate::{
     api,
     assets::{self},
     cache,
-    config::Config,
+    config::{Config, ADDONS_RELATIVE_PATH},
 };
 
 pub async fn run(id: &Option<String>) -> Result<()> {
@@ -18,9 +20,11 @@ pub async fn run(id: &Option<String>) -> Result<()> {
     }
 
     for asset in &mut config.assets {
-        if asset.install_folder.is_some() {
-            println!("Asset {} already installed. Skipping!", asset.title);
-            continue;
+        if let Some(install_folder) = &asset.install_folder {
+            if std::fs::exists(PathBuf::from_str(ADDONS_RELATIVE_PATH)?.join(install_folder))? {
+                println!("Asset {} already installed. Skipping!", asset.title);
+                continue;
+            }
         }
 
         if cache::get(asset).is_err() {

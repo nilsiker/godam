@@ -3,7 +3,7 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{assets::Asset, godot};
+use crate::{assets::AssetInfo, godot};
 
 pub const ADDONS_RELATIVE_PATH: &str = "./addons";
 const CONFIG_RELATIVE_PATH: &str = "./addons/godam.toml";
@@ -27,7 +27,7 @@ pub enum ConfigError {
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub godot_version: Version,
-    pub assets: Vec<Asset>,
+    pub assets: Vec<AssetInfo>,
 }
 impl Config {
     pub fn get() -> Result<Self> {
@@ -37,11 +37,11 @@ impl Config {
         Ok(toml::from_str(&string)?)
     }
 
-    pub fn asset(&self, id: &str) -> Option<&Asset> {
+    pub fn asset(&self, id: &str) -> Option<&AssetInfo> {
         self.assets.iter().find(|a| a.asset_id == id)
     }
 
-    fn asset_mut(&mut self, id: &str) -> Option<&mut Asset> {
+    fn asset_mut(&mut self, id: &str) -> Option<&mut AssetInfo> {
         self.assets.iter_mut().find(|a| a.asset_id == id)
     }
 
@@ -64,7 +64,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn add_asset(&mut self, asset: Asset) -> Result<()> {
+    pub fn add_asset(&mut self, asset: AssetInfo) -> Result<()> {
         if self.assets.contains(&asset) {
             println!("Asset is already registered. Skipping...");
         } else {

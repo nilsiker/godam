@@ -1,61 +1,41 @@
-use std::{fs::File, path::PathBuf, str::FromStr};
+use std::fs::File;
 
 use anyhow::Result;
-use thiserror::Error;
-use zip::ZipArchive;
 
-use crate::assets::Asset;
+use crate::{
+    api::AssetBlob,
+    assets::{AssetArchive, AssetInfo},
+    traits::ReadSeek,
+};
 
-const CACHE_PATH: &str = "./addons/.godam";
+pub fn write_to_cache(id: &str, archive: &AssetBlob) -> Result<()> {
+    ensure_cache_dir()?;
 
-#[derive(Error, Debug)]
-enum CacheError {
-    #[error("Asset zip was not found in cache.")]
-    FileOpenFailed,
-    #[error("Asset zip could not be read - file is possibly corrupted.")]
-    ZipReadFailed,
-}
+    let cached_path = path::cache_zip_path(id);
 
-pub fn init() -> Result<()> {
-    std::fs::create_dir_all(CACHE_PATH)?;
+    std::fs::write(cached_path.clone(), &archive.bytes).map_err(|e| error::CacheError::Write {
+        id: id.to_string(),
+        path: cached_path.as_path().into(),
+        error: e,
+    })?;
+
     Ok(())
 }
 
-pub fn get(asset: &Asset) -> Result<ZipArchive<File>> {
-    let file_path = cache_zip_path(&asset.asset_id)?;
+pub fn get(asset: &AssetInfo) -> Result<AssetArchive> {
+    ensure_cache_dir()?;
 
-    let file = File::open(file_path).map_err(|_| CacheError::FileOpenFailed)?;
-    let archive = zip::read::ZipArchive::new(file).map_err(|_| CacheError::ZipReadFailed)?;
+    let file_path = path::cache_zip_path(&asset.asset_id);
 
-    Ok(archive)
-}
+    let file = File::open(file_path).map_err(|_| error::CacheError::FileOpen)?;
+    let boxed_file: Box<dyn ReadSeek> = Box::new(file);
+    let archive = zip::read::ZipArchive::new(boxed_file).map_err(|_| error::CacheError::ZipRead)?;
 
-pub async fn download_asset(asset: &Asset) -> Result<ZipArchive<File>> {
-    if !std::fs::exists(CACHE_PATH)? {
-        init()?;
-    }
-
-    let Asset {
-        download_url,
-        asset_id,
-        ..
-    } = asset;
-
-    println!("Downloading {}...", asset.title);
-
-    let resp = reqwest::get(download_url).await?;
-    let bytes = resp.bytes().await?;
-
-    let zip_path = cache_zip_path(asset_id)?;
-
-    std::fs::write(zip_path, bytes)?;
-
-    println!("Downloaded {}!", asset.title);
-    get(asset)
+    Ok(AssetArchive(archive))
 }
 
 pub fn clean() -> Result<()> {
-    let cache_path = PathBuf::from_str(CACHE_PATH)?;
+    let cache_path = path::cache_path();
     let cache_dir = cache_path.read_dir()?;
 
     let mut removed = vec![];
@@ -76,9 +56,53 @@ pub fn clean() -> Result<()> {
     Ok(())
 }
 
-fn cache_zip_path(id: &str) -> Result<PathBuf> {
-    let buf = PathBuf::from_str(CACHE_PATH)?
-        .join(id)
-        .with_extension("zip");
-    Ok(buf)
+fn ensure_cache_dir() -> Result<()> {
+    if !std::fs::exists(path::cache_path())? {
+        std::fs::create_dir_all(path::cache_path())?;
+    }
+    Ok(())
+}
+
+mod path {
+    use std::{path::PathBuf, str::FromStr};
+
+    const CACHE_PATH: &str = "./addons/.godam";
+
+    pub fn cache_path() -> PathBuf {
+        PathBuf::from_str(CACHE_PATH).expect("valid cache path")
+    }
+
+    pub fn cache_zip_path(id: &str) -> PathBuf {
+        cache_path().join(id).with_extension("zip")
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        fn paths_are_relative() {
+            assert!(cache_path().is_relative());
+            assert!(cache_zip_path("1234").is_relative());
+        }
+    }
+}
+
+mod error {
+    use std::path::Path;
+
+    use thiserror::Error;
+
+    #[derive(Error, Debug)]
+    pub enum CacheError {
+        #[error("Asset zip was not found in cache.")]
+        FileOpen,
+        #[error("Asset zip could not be read - file is possibly corrupted.")]
+        ZipRead,
+        #[error("Asset zip could not be written to cache path. Details: {error}.")]
+        Write {
+            id: String,
+            path: Box<Path>,
+            error: std::io::Error,
+        },
+    }
 }

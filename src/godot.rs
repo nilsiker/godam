@@ -1,7 +1,6 @@
-use std::str::FromStr;
-
 use anyhow::{anyhow, Result};
 use semver::Version;
+use std::str::FromStr;
 use thiserror::Error;
 
 const GODOT_PROJECT_LINE_START: &str = "config/features=PackedStringArray(";

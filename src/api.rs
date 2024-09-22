@@ -1,17 +1,29 @@
+//! Handles all calls to the web
+
 use anyhow::Result;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::assets::{Asset, AssetSearchResult};
+use crate::assets::AssetInfo;
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct AssetResponse {
-    result: Vec<Asset>,
+    result: Vec<AssetInfo>,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct AssetSearchResponse {
     result: Vec<AssetSearchResult>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+pub struct AssetSearchResult {
+    pub asset_id: String,
+    pub title: String,
+}
+
+pub struct AssetBlob {
+    pub bytes: Vec<u8>,
 }
 
 pub async fn get_assets_by_name(name: &str, version: &Version) -> Result<Vec<AssetSearchResult>> {
@@ -26,8 +38,20 @@ pub async fn get_assets_by_name(name: &str, version: &Version) -> Result<Vec<Ass
     Ok(asset_search_response.result)
 }
 
-pub async fn get_asset_by_id(id: &str) -> Result<Asset> {
+pub async fn get_asset_by_id(id: &str) -> Result<AssetInfo> {
     let request_url = format!("https://godotengine.org/asset-library/api/asset/{id}");
-    let asset = reqwest::get(&request_url).await?.json::<Asset>().await?;
+    let asset = reqwest::get(&request_url)
+        .await?
+        .json::<AssetInfo>()
+        .await?;
     Ok(asset)
+}
+
+pub async fn download(asset: &AssetInfo) -> Result<AssetBlob> {
+    let resp = reqwest::get(&asset.download_url).await?;
+    let bytes = resp.bytes().await?;
+
+    Ok(AssetBlob {
+        bytes: bytes.to_vec(),
+    })
 }

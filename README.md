@@ -76,9 +76,8 @@ Using GODAM, let us install [LimboAI for Godot 4.3](https://godotengine.org/asse
 
 - Release builds for Windows, macOS and Linux
 - [indicatif](https://github.com/console-rs/indicatif) integration for more pleasing console printouts
-- Multi-threaded downloads and installs
+- Further multi-threaded support (uninstall)
 - Support asset version freeze and upgrades
 - Improve codebase, enhancing maintainability and readability. This includes:
   - Removing expects
   - Giving modules clearer ares of responsibility
-  - Refactoring messy portions (such as the `install_folder` lookup)

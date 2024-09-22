@@ -4,13 +4,13 @@ on:
   push:
     branches: [ "main" ]
     paths-ignore:
-      - '**/README.md'
-      - '**/LICENSE'
+      - 'README.md'
+      - 'LICENSE'
   pull_request:
     branches: [ "main" ]
     paths-ignore:
-      - '**/README.md'
-      - '**/LICENSE'
+      - 'README.md'
+      - 'LICENSE'
 
 env:
   CARGO_TERM_COLOR: always

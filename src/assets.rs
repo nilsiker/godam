@@ -1,5 +1,3 @@
-//!
-
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -36,18 +34,12 @@ const ADDONS_PATH_END: &str = "addons/";
 
 pub struct AssetArchive(pub ZipArchive<Box<dyn ReadSeek>>);
 impl AssetArchive {
-    pub fn get_addons_folder_path(&self) -> Option<&str> {
-        self.0
-            .file_names()
-            .find(|file_name| file_name.ends_with(ADDONS_PATH_END))
-    }
-
     pub fn get_paths_under_addons(&self) -> Vec<&str> {
         match self.get_addons_folder_path() {
             Some(addons_folder) => self
                 .0
                 .file_names()
-                .filter(|file_name| file_name.starts_with(&addons_folder))
+                .filter(|file_name| file_name.starts_with(addons_folder))
                 .collect(),
             None => vec![],
         }
@@ -58,6 +50,12 @@ impl AssetArchive {
             Some(start) => Some(&path_under_addon[start..]),
             None => None,
         }
+    }
+
+    fn get_addons_folder_path(&self) -> Option<&str> {
+        self.0
+            .file_names()
+            .find(|file_name| file_name.ends_with(ADDONS_PATH_END))
     }
 }
 

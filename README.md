@@ -1,7 +1,7 @@
 # GODAM - An unofficial minimal Godot Asset Manager
 
 ![rust 1.81](https://img.shields.io/badge/rust-1.81-orange)
-
+[![Rust](https://github.com/nilsiker/godam/actions/workflows/rust.yml/badge.svg)](https://github.com/nilsiker/godam/actions/workflows/rust.yml)
 
 > 💡 This CLI is my personal tool for installing assets from the Godot AssetLib in a command-line environment.
 >

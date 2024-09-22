@@ -37,12 +37,26 @@ pub async fn run(id: &Option<String>) -> Result<(), InstallError> {
     }
 
     let assets = resolve_asset_info()?;
+    println!("Resolved asset information");
 
-    let not_installed_assets = assets.into_iter().filter(|a| !a.is_installed()).collect();
+    let not_installed_assets: Vec<AssetInfo> =
+        assets.into_iter().filter(|a| !a.is_installed()).collect();
+
+    if not_installed_assets.len() > 0 {}
+    println!("Installing {} assets...", not_installed_assets.len());
 
     let archives = fetch_assets(not_installed_assets).await?;
+    println!("Fetched {} asset archives.", archives.len());
 
     let successful_installs = install_from_archives(archives).await;
+    println!(
+        "Successfully installed assets:\n- {}",
+        successful_installs
+            .iter()
+            .map(|i| i.1.clone())
+            .collect::<Vec<String>>()
+            .join("\n- ")
+    );
 
     update_config(&mut config, successful_installs)?;
     Ok(())
@@ -71,7 +85,6 @@ async fn install_from_archives(archives: Vec<AssetArchive>) -> Vec<(String, Stri
 fn resolve_asset_info() -> Result<Vec<AssetInfo>, InstallError> {
     let config = Config::get()?;
 
-    println!("Resolved asset information");
     Ok(config.assets)
 }
 

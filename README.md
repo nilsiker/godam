@@ -1,21 +1,15 @@
-# **godam** - An unofficial minimal Godot Asset Manager
+# **godam** 
 
 ![rust 1.81](https://img.shields.io/badge/rust-1.81-orange)
 [![Rust](https://github.com/nilsiker/godam/actions/workflows/rust.yml/badge.svg)](https://github.com/nilsiker/godam/actions/workflows/rust.yml)
 
-> 💡 This CLI is my personal tool for installing assets from the Godot AssetLib in a command-line environment.
->
-> It is not an official Godot product or service.
-> 
-> Because of this, its use case is strictly scoped to my current needs.
->
-> Feel free to raise issues and provide feedback!
-
-![](media/godam.png)
-
 **godam** (**God**ot **A**sset **M**anager) is an unofficial minimal command-line tool to manage assets from the Godot Asset Library. 
 
-The CLI aims to operate in the same way the Godot Editor downloads and installs assets from the Godot Asset Library. The objective is to allow developers to fully omit addons from their VCS, and keep track of them using a declarative configuration file (similar to `Cargo.toml` or `package.json`)
+<p align="center">
+  <img alt="an icon of a orange pixel-art robot head, with a command line icon obscuring its face, titled “godam” just below it" src="media/godam.png" />
+</p>
+
+This command-line tool aims to operate in the same way the Godot Editor downloads and installs assets from the Godot Asset Library. The objective is to allow developers to fully omit addons from their VCS, and keep track of them using a declarative configuration file (similar to `Cargo.toml` or `package.json`)
 
 > ⚠️ **godam** manages asset files on your computer that are scoped to relative paths under your Godot project folder. With that said, I make no guarantees I haven't made errors in my file handling logic.
 >
@@ -73,6 +67,12 @@ Using **godam**, let us install [LimboAI for Godot 4.3](https://godotengine.org/
   
 8. Clean the cache using `godam clean` 
 
+## Disclaimer 
+This is not an official Godot product or service, but my personal tool for installing assets from the Godot AssetLib in a command-line environment.
+
+Because of this, its use case is strictly scoped to my current needs.
+
+Feel free to raise issues and provide feedback!
 
 # Future ideas 🔮
 

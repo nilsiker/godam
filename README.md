@@ -1,4 +1,4 @@
-# GODAM - An unofficial minimal Godot Asset Manager
+# **godam** - An unofficial minimal Godot Asset Manager
 
 ![rust 1.81](https://img.shields.io/badge/rust-1.81-orange)
 [![Rust](https://github.com/nilsiker/godam/actions/workflows/rust.yml/badge.svg)](https://github.com/nilsiker/godam/actions/workflows/rust.yml)
@@ -11,11 +11,13 @@
 >
 > Feel free to raise issues and provide feedback!
 
-GODAM (**God**ot **A**sset **M**anager) is an unofficial minimal command-line tool to manage assets from the Godot Asset Library. 
+![](media/godam.png)
+
+**godam** (**God**ot **A**sset **M**anager) is an unofficial minimal command-line tool to manage assets from the Godot Asset Library. 
 
 The CLI aims to operate in the same way the Godot Editor downloads and installs assets from the Godot Asset Library. The objective is to allow developers to fully omit addons from their VCS, and keep track of them using a declarative configuration file (similar to `Cargo.toml` or `package.json`)
 
-> ⚠️ GODAM manages asset files on your computer that are scoped to relative paths under your Godot project folder. With that said, I make no guarantees I haven't made errors in my file handling logic.
+> ⚠️ **godam** manages asset files on your computer that are scoped to relative paths under your Godot project folder. With that said, I make no guarantees I haven't made errors in my file handling logic.
 >
 > Use at your own discretion!
 
@@ -26,12 +28,12 @@ This section outlines the current features available.
 - Searching the Godot Asset Library API for asset IDs.
 - Installing assets using the asset ID found in Godot Asset Library ID.
 - Uninstalling assets using the asset ID found in Godot Asset Library ID.
-- Listing all assets managed by GODAM
+- Listing all assets managed by **godam**
 - Cleaning the asset cache
   
 ## How it works ❔
 
-GODAM scaffolds your Godot project folder, creating a `godam.toml` file, a `.godam` cache folder and a `.gitignore` in your `addons` folder. The .gitignore sets up your git to ignore all contents of the addon folder except for the TOML configuration file.
+**godam** scaffolds your Godot project folder, creating a `godam.toml` file, a `.godam` cache folder and a `.gitignore` in your `addons` folder. The .gitignore sets up your git to ignore all contents of the addon folder except for the TOML configuration file.
 
 When adding an asset using `godam install <ID>` the following happens:
 
@@ -52,10 +54,10 @@ When adding an asset using `godam install <ID>` the following happens:
 
 ## Example ⚙️
 
-Using GODAM, let us install [LimboAI for Godot 4.3](https://godotengine.org/asset-library/asset/3228):
+Using **godam**, let us install [LimboAI for Godot 4.3](https://godotengine.org/asset-library/asset/3228):
 
 
-1. If you haven't already, install the GODAM executable using `cargo install --git https://github.com/nilsiker/godam`
+1. If you haven't already, install the **godam** executable using `cargo install --git https://github.com/nilsiker/godam`
 
 2. `cd` to your Godot project directory (this is were your `project.godot` file resides)   
 
@@ -65,7 +67,7 @@ Using GODAM, let us install [LimboAI for Godot 4.3](https://godotengine.org/asse
 
 5. Install the asset using `godam install <ID RETURNED BY STEP 3>`
 
-6. List GODAM-managed assets using `godam list`
+6. List **godam**-managed assets using `godam list`
  
 7. Install all managed assets using `godam install`
   

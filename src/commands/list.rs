@@ -1,8 +1,7 @@
-use anyhow::Result;
 
-use crate::config::Config;
+use crate::config::{Config, ConfigError};
 
-pub fn run() -> Result<()> {
+pub fn run() -> Result<(), ConfigError> {
     let config = Config::get()?;
 
     println!("\nGodam is managing {} assets\n", config.assets.len());

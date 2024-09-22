@@ -1,12 +1,20 @@
-use anyhow::Result;
 use path::installed_path;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::traits::ReadSeek;
 
-#[derive(Debug, Error)]
-pub enum AssetError {}
+#[derive(Error, Debug)]
+pub enum AssetError {
+    #[error("Invalid asset structure. No addons folder was identified for asset with id {0}")]
+    InvalidAssetStructure(String),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Zip(#[from] zip::result::ZipError),
+    #[error("Asset {0} is not installed")]
+    NotInstalled(String),
+}
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct AssetInfo {
@@ -30,24 +38,31 @@ use zip::ZipArchive;
 
 const ADDONS_PART_PATTERN: &str = "addons";
 
-pub struct AssetArchive(pub ZipArchive<Box<dyn ReadSeek>>);
+pub struct AssetArchive {
+    pub id: String,
+    pub archive: ZipArchive<Box<dyn ReadSeek>>,
+}
+
 impl AssetArchive {
-    pub fn get_plugin_name_and_files_to_extract(&self) -> (String, Vec<String>) {
-        let (plugin_name, plugin_path) =
-            self.get_plugin_info().expect("can find plugin folder path");
+    pub fn get_plugin_name_and_files_to_extract(
+        &self,
+    ) -> Result<(String, Vec<String>), AssetError> {
+        let Some((plugin_name, plugin_path)) = self.get_plugin_info() else {
+            return Err(AssetError::InvalidAssetStructure(self.id.to_string()));
+        };
 
         let file_paths = self
-            .0
+            .archive
             .file_names()
             .filter(|file_name| file_name.starts_with(&plugin_path))
             .map(String::from)
             .collect();
 
-        (plugin_name, file_paths)
+        Ok((plugin_name, file_paths))
     }
 
     pub fn get_plugin_info(&self) -> Option<(String, String)> {
-        self.0.file_names().find_map(|file_name| {
+        self.archive.file_names().find_map(|file_name| {
             let mut parts = file_name.split('/');
             let mut full_path = Vec::new();
 
@@ -84,10 +99,11 @@ impl AssetArchive {
     }
 }
 
-pub fn install(asset_archive: AssetArchive) -> Result<String> {
-    let (plugin_name, zip_paths_to_extract) = asset_archive.get_plugin_name_and_files_to_extract();
+pub fn install(asset_archive: AssetArchive) -> Result<String, AssetError> {
+    let (plugin_name, zip_paths_to_extract) =
+        asset_archive.get_plugin_name_and_files_to_extract()?;
 
-    let mut archive = asset_archive.0;
+    let mut archive = asset_archive.archive;
 
     for path in zip_paths_to_extract {
         let mut contents = archive.by_name(&path)?;
@@ -111,11 +127,14 @@ pub fn install(asset_archive: AssetArchive) -> Result<String> {
     Ok(plugin_name)
 }
 
-pub fn uninstall(asset: &AssetInfo) -> Result<()> {
+pub fn uninstall(asset: &AssetInfo) -> Result<(), AssetError> {
+    if !asset.is_installed() {
+        return Err(AssetError::NotInstalled(asset.asset_id.clone()));
+    }
     let install_folder = asset
         .install_folder
         .clone()
-        .expect("existing install folder to be removed");
+        .expect("install_folder is specified, ensured in code before this.");
     let asset_path = installed_path(&install_folder);
     std::fs::remove_dir_all(asset_path)?;
 
@@ -136,10 +155,9 @@ mod path {
     }
 
     pub fn get_out_path_from_archive_path(archive_path: &str) -> Option<PathBuf> {
-        match archive_path.find("addons/") {
-            Some(start) => Some(PathBuf::new().join(&archive_path[start..])),
-            None => None,
-        }
+        archive_path
+            .find("addons/")
+            .map(|start| PathBuf::new().join(&archive_path[start..]))
     }
 
     #[cfg(test)]

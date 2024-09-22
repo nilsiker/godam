@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 thiserror = "*"
-anyhow = "1.0.81"
 clap = { version = "4.5.4", features = ["derive"] }
 reqwest = { version = "0.12.3", features = ["json"] }
 semver = { version = "1.0.22", features = ["serde"] }

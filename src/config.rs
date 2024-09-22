@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -12,16 +11,20 @@ const ADDONS_GITIGNORE_CONTENT: &str = "*\n!.gitignore\n!godam.toml\n.godam";
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
-    #[error("No configuration found. Ensure the project is initialized.")]
-    NotFound,
-    #[error("The configuration format is invalid.")]
-    InvalidFormat,
-    #[error("Could not remove asset. {0}.")]
-    FailedRemove(String),
-    #[error("Could not add asset. {0}.")]
-    FailedAdd(String),
-    #[error("Could not uninstall asset. {0}.")]
-    FailedUninstall(String),
+    #[error("Asset {0} is not present in configuration.")]
+    AssetNotFound(String),
+
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Parse error: {0}")]
+    Parse(#[from] toml::de::Error),
+
+    #[error("Parse error: {0}")]
+    Serialize(#[from] toml::ser::Error),
+
+    #[error("Godot error: {0}")]
+    GodotError(#[from] godot::GodotError),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -30,22 +33,28 @@ pub struct Config {
     pub assets: Vec<AssetInfo>,
 }
 impl Config {
-    pub fn get() -> Result<Self> {
-        let toml_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
-        let string = std::fs::read_to_string(toml_path).map_err(|_| ConfigError::NotFound)?;
+    pub fn get() -> Result<Self, ConfigError> {
+        let toml_path = std::env::current_dir()
+            .map_err(ConfigError::from)?
+            .join(CONFIG_RELATIVE_PATH);
+        let string = std::fs::read_to_string(toml_path)?;
+        let config = toml::from_str(&string)?;
 
-        Ok(toml::from_str(&string)?)
+        Ok(config)
     }
 
-    pub fn asset(&self, id: &str) -> Option<&AssetInfo> {
-        self.assets.iter().find(|a| a.asset_id == id)
+    pub fn asset(&self, id: &str) -> Result<&AssetInfo, ConfigError> {
+        self.assets
+            .iter()
+            .find(|a| a.asset_id == id)
+            .ok_or(ConfigError::AssetNotFound(id.to_string()))
     }
 
     fn asset_mut(&mut self, id: &str) -> Option<&mut AssetInfo> {
         self.assets.iter_mut().find(|a| a.asset_id == id)
     }
 
-    pub fn init() -> Result<()> {
+    pub fn init() -> Result<(), ConfigError> {
         let version = godot::get_project_version()?;
 
         let config = Config {
@@ -64,7 +73,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn add_asset(&mut self, asset: AssetInfo) -> Result<()> {
+    pub fn add_asset(&mut self, asset: AssetInfo) -> Result<(), ConfigError> {
         if self.assets.contains(&asset) {
             println!("Asset is already registered. Skipping...");
         } else {
@@ -74,33 +83,31 @@ impl Config {
         Ok(())
     }
 
-    pub fn remove_asset(&mut self, id: &str) -> Result<()> {
+    pub fn remove_asset(&mut self, id: &str) -> Result<(), ConfigError> {
         match self.assets.iter().position(|asset| asset.asset_id == id) {
             Some(index) => {
                 self.assets.remove(index);
                 self.save()
             }
-            None => Err(anyhow!(ConfigError::FailedRemove(format!(
-                "No asset with id {id} found."
-            )))),
+            None => Err(ConfigError::AssetNotFound(id.to_string())),
         }
     }
 
-    pub fn save(&self) -> Result<()> {
+    pub fn save(&self) -> Result<(), ConfigError> {
         let toml_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
         let str = toml::to_string_pretty(self)?;
         Ok(std::fs::write(toml_path, str)?)
     }
 
-    pub fn register_install_folder(&mut self, id: &str, install_folder: &str) {
+    pub fn register_install_folder(
+        &mut self,
+        id: &str,
+        install_folder: String,
+    ) -> Result<(), ConfigError> {
         match self.asset_mut(id) {
-            Some(asset) => asset.install_folder = Some(install_folder.to_string()),
+            Some(asset) => asset.install_folder = Some(install_folder),
             None => println!("Asset ID not found in configuration"),
         }
-        self.save().expect("can save config");
-    }
-
-    pub fn contains_asset(&self, id: &str) -> bool {
-        self.asset(id).is_some()
+        self.save()
     }
 }

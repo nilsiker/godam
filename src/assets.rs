@@ -30,19 +30,22 @@ impl AssetInfo {
 
 use zip::ZipArchive;
 
-const ADDONS_PATH_END: &str = "addons/";
+const ADDONS_PART_PATTERN: &str = "addons";
 
 pub struct AssetArchive(pub ZipArchive<Box<dyn ReadSeek>>);
 impl AssetArchive {
-    pub fn get_paths_under_addons(&self) -> Vec<&str> {
-        match self.get_addons_folder_path() {
-            Some(addons_folder) => self
-                .0
-                .file_names()
-                .filter(|file_name| file_name.starts_with(addons_folder))
-                .collect(),
-            None => vec![],
-        }
+    pub fn get_plugin_name_and_files_to_extract(&self) -> (String, Vec<String>) {
+        let (plugin_name, plugin_path) =
+            self.get_plugin_info().expect("can find plugin folder path");
+
+        let file_paths = self
+            .0
+            .file_names()
+            .filter(|file_name| file_name.starts_with(&plugin_path))
+            .map(String::from)
+            .collect();
+
+        (plugin_name, file_paths)
     }
 
     pub fn get_out_path(path_under_addon: &str) -> Option<&str> {
@@ -52,22 +55,46 @@ impl AssetArchive {
         }
     }
 
-    fn get_addons_folder_path(&self) -> Option<&str> {
-        self.0
-            .file_names()
-            .find(|file_name| file_name.ends_with(ADDONS_PATH_END))
+    pub fn get_plugin_info(&self) -> Option<(String, String)> {
+        self.0.file_names().find_map(|file_name| {
+            let mut parts = file_name.split('/');
+            let mut full_path = Vec::new();
+
+            // Check if "addons" is the first part or the second part
+            if let Some(first_part) = parts.next() {
+                full_path.push(first_part);
+
+                if first_part == ADDONS_PART_PATTERN {
+                    if let Some(plugin_folder) = parts.next() {
+                        if !plugin_folder.is_empty() {
+                            full_path.push(plugin_folder);
+                            return Some((plugin_folder.to_string(), full_path.join("/")));
+                        }
+                    }
+                }
+            }
+
+            // If not found in the first part, check for "addons" in the next layer
+            if let Some(second_part) = parts.next() {
+                full_path.push(second_part);
+
+                if second_part == ADDONS_PART_PATTERN {
+                    if let Some(plugin_folder) = parts.next() {
+                        if !plugin_folder.is_empty() {
+                            full_path.push(plugin_folder);
+                            return Some((plugin_folder.to_string(), full_path.join("/")));
+                        }
+                    }
+                }
+            }
+
+            None
+        })
     }
 }
 
 pub fn install(asset_archive: AssetArchive) -> Result<String> {
-    let mut install_folder = None;
-
-    // validate zip archive, finding the addons path and then all paths to be extracted
-    let zip_paths_to_extract: Vec<String> = asset_archive
-        .get_paths_under_addons()
-        .into_iter()
-        .map(str::to_string)
-        .collect();
+    let (plugin_name, zip_paths_to_extract) = asset_archive.get_plugin_name_and_files_to_extract();
 
     let mut archive = asset_archive.0;
 
@@ -77,15 +104,7 @@ pub fn install(asset_archive: AssetArchive) -> Result<String> {
             Some(path) => PathBuf::new().join(path),
             None => continue,
         };
-
-        // determine install folder
-        if install_folder.is_none() {
-            let comps = out_path.components();
-            if comps.clone().count() == 2 {
-                let comp = comps.last().expect("2 elements");
-                install_folder = Some(comp.as_os_str().to_str().expect("some string").to_string());
-            }
-        }
+        println!("{out_path:?}");
 
         // create parent dir if not exists
         if let Some(parent) = out_path.parent() {
@@ -100,7 +119,7 @@ pub fn install(asset_archive: AssetArchive) -> Result<String> {
             std::io::copy(&mut contents, &mut out_file)?;
         }
     }
-    Ok(install_folder.expect("plugin folder is identified"))
+    Ok(plugin_name)
 }
 
 pub fn uninstall(asset: &AssetInfo) -> Result<()> {

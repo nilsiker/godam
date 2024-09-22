@@ -3,7 +3,13 @@ use std::io::Cursor;
 use anyhow::Result;
 use zip::ZipArchive;
 
-use crate::{api, assets::{self, AssetArchive}, cache, config::Config, traits::ReadSeek};
+use crate::{
+    api,
+    assets::{self, AssetArchive},
+    cache,
+    config::Config,
+    traits::ReadSeek,
+};
 
 pub async fn run(id: &Option<String>) -> Result<()> {
     let mut config = Config::get()?;

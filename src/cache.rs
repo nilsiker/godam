@@ -1,9 +1,12 @@
 use std::fs::File;
 
 use anyhow::Result;
-use zip::ZipArchive;
 
-use crate::{api::AssetBlob, assets::AssetInfo, traits::ReadSeek};
+use crate::{
+    api::AssetBlob,
+    assets::{AssetArchive, AssetInfo},
+    traits::ReadSeek,
+};
 
 pub fn write_to_cache(id: &str, archive: &AssetBlob) -> Result<()> {
     ensure_cache_dir()?;
@@ -19,7 +22,7 @@ pub fn write_to_cache(id: &str, archive: &AssetBlob) -> Result<()> {
     Ok(())
 }
 
-pub fn get(asset: &AssetInfo) -> Result<ZipArchive<Box<dyn ReadSeek>>> {
+pub fn get(asset: &AssetInfo) -> Result<AssetArchive> {
     ensure_cache_dir()?;
 
     let file_path = path::cache_zip_path(&asset.asset_id);
@@ -28,7 +31,7 @@ pub fn get(asset: &AssetInfo) -> Result<ZipArchive<Box<dyn ReadSeek>>> {
     let boxed_file: Box<dyn ReadSeek> = Box::new(file);
     let archive = zip::read::ZipArchive::new(boxed_file).map_err(|_| error::CacheError::ZipRead)?;
 
-    Ok(archive)
+    Ok(AssetArchive(archive))
 }
 
 pub fn clean() -> Result<()> {

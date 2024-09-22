@@ -1,3 +1,5 @@
+//! Handles all calls to the web
+
 use anyhow::Result;
 use semver::Version;
 use serde::{Deserialize, Serialize};

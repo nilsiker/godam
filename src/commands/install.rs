@@ -1,10 +1,9 @@
 use std::io::Cursor;
 
 use anyhow::Result;
-use indicatif::{MultiProgress, ProgressBar};
 use zip::ZipArchive;
 
-use crate::{api, assets, cache, config::Config, traits::ReadSeek};
+use crate::{api, assets::{self, AssetArchive}, cache, config::Config, traits::ReadSeek};
 
 pub async fn run(id: &Option<String>) -> Result<()> {
     let mut config = Config::get()?;
@@ -22,7 +21,7 @@ pub async fn run(id: &Option<String>) -> Result<()> {
             continue;
         }
 
-        let archive: zip::ZipArchive<Box<dyn ReadSeek>> = match cache::get(asset) {
+        let archive: AssetArchive = match cache::get(asset) {
             Ok(hit) => {
                 println!("Found {} in cache.", asset.title);
                 hit
@@ -37,12 +36,13 @@ pub async fn run(id: &Option<String>) -> Result<()> {
                 println!("Cached {} to {}.zip", asset.title, asset.asset_id);
 
                 let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
-                ZipArchive::new(cursor)?
+                AssetArchive(ZipArchive::new(cursor)?)
             }
         };
 
         println!("Installing {}", asset.title);
         asset.install_folder = assets::install(archive).ok();
+
         println!(
             "Installed {} to {}!",
             asset.title,

@@ -4,6 +4,7 @@ pub mod cache;
 pub mod commands;
 pub mod config;
 pub mod godot;
+pub mod traits;
 
 use clap::Parser;
 use commands::Commands;

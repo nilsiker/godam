@@ -4,52 +4,42 @@ use std::{
 };
 
 use anyhow::Result;
-use indicatif::{ProgressBar, ProgressStyle};
+use path::installed_path;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{
-    cache::get,
-    config::{Config, ADDONS_RELATIVE_PATH},
-};
+use crate::traits::ReadSeek;
 
 #[derive(Debug, Error)]
 pub enum AssetError {}
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
-pub struct AssetSearchResult {
-    pub asset_id: String,
-    pub title: String,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
-pub struct Asset {
+pub struct AssetInfo {
     pub asset_id: String,
     pub title: String,
     pub download_url: String,
     pub install_folder: Option<String>,
 }
 
-pub fn install(asset: &Asset) -> Result<String> {
-    let config = Config::get()?;
+pub struct AssetArchive<'a> {
+    pub id: &'a str,
+    pub zip: zip::ZipArchive<Box<dyn ReadSeek>>,
+}
 
-    let asset = config
-        .asset(&asset.asset_id)
-        .expect("id should exist in config");
+impl AssetInfo {
+    pub fn is_installed(&self) -> bool {
+        if let Some(install_folder) = &self.install_folder {
+            std::fs::exists(path::installed_path(install_folder)).is_ok_and(|exists| exists)
+        } else {
+            false
+        }
+    }
+}
 
-    let mut archive = get(asset)?;
-
-    let progress = ProgressBar::new(archive.len() as u64)
-        .with_style(ProgressStyle::with_template(
-            "{msg} {bar:40.cyan/blue} {pos:>7}/{len:7}",
-        )?)
-        .with_message(format!("Installing {}: ", asset.title));
-
+pub fn install(mut archive: zip::ZipArchive<Box<dyn ReadSeek>>) -> Result<String> {
     let mut plugin_folder_name: Option<String> = None;
 
     for i in 0..archive.len() {
-        progress.inc(1);
-
         let mut file = archive.by_index(i)?;
 
         let mut zip_path = Path::new(file.name()).to_path_buf();
@@ -92,17 +82,40 @@ pub fn install(asset: &Asset) -> Result<String> {
             std::io::copy(&mut file, &mut out_file)?;
         }
     }
-    progress.finish_with_message(format!("Installed {}", asset.title));
     Ok(plugin_folder_name.expect("plugin folder is identified"))
 }
 
-pub fn uninstall(asset: &Asset) -> Result<()> {
+pub fn uninstall(asset: &AssetInfo) -> Result<()> {
     let install_folder = asset
         .install_folder
         .clone()
         .expect("existing install folder to be removed");
-    let asset_path = PathBuf::from_str(ADDONS_RELATIVE_PATH)?.join(install_folder);
+    let asset_path = installed_path(&install_folder);
     std::fs::remove_dir_all(asset_path)?;
 
     Ok(())
+}
+
+mod path {
+    use std::{path::PathBuf, str::FromStr};
+
+    use crate::config::ADDONS_RELATIVE_PATH;
+
+    pub fn addons_path() -> PathBuf {
+        PathBuf::from_str(ADDONS_RELATIVE_PATH).expect("valid addons relative path")
+    }
+
+    pub fn installed_path(install_folder: &str) -> PathBuf {
+        addons_path().join(install_folder)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        fn paths_are_relative() {
+            assert!(addons_path().is_relative());
+            assert!(installed_path("some_asset").is_relative());
+        }
+    }
 }

@@ -1,6 +1,9 @@
 use anyhow::Result;
 
-use crate::{api, assets::AssetSearchResult, godot};
+use crate::{
+    api::{self, AssetSearchResult},
+    godot,
+};
 
 pub async fn run(asset_name: &str) -> Result<()> {
     let version = godot::get_project_version()?;

@@ -1,19 +1,34 @@
 use std::io::Cursor;
 
-use anyhow::Result;
+use thiserror::Error;
+use tokio::task::JoinSet;
 use zip::ZipArchive;
 
 use crate::{
     api,
-    assets::{self, AssetArchive},
+    assets::{install, AssetArchive, AssetInfo},
     cache,
-    config::Config,
+    config::{self, Config},
     traits::ReadSeek,
 };
 
-pub async fn run(id: &Option<String>) -> Result<()> {
-    let mut config = Config::get()?;
+#[derive(Error, Debug)]
+pub enum InstallError {
+    #[error(transparent)]
+    Config(#[from] config::ConfigError),
 
+    #[error(transparent)]
+    Request(#[from] api::ApiError),
+
+    #[error("Cache error: {0}")]
+    Cache(#[from] std::io::Error),
+
+    #[error(transparent)]
+    Zip(#[from] zip::result::ZipError),
+}
+
+pub async fn run(id: &Option<String>) -> Result<(), InstallError> {
+    let mut config = Config::get()?;
     if let Some(id) = id {
         if config.asset(id).is_none() {
             let asset = api::get_asset_by_id(id).await?;
@@ -21,42 +36,92 @@ pub async fn run(id: &Option<String>) -> Result<()> {
         }
     }
 
-    for asset in &mut config.assets {
-        if asset.is_installed() {
-            println!("Asset {} already installed. Skipping!", asset.title);
-            continue;
-        }
+    let assets = resolve_asset_info()?;
 
-        let archive: AssetArchive = match cache::get(asset) {
-            Ok(hit) => {
-                println!("Found {} in cache.", asset.title);
-                hit
-            }
-            Err(_) => {
-                println!("Downloading {}", asset.title);
-                let blob = api::download(asset).await?;
-                println!("Downloaded {}!", asset.title);
+    let not_installed_assets = assets.into_iter().filter(|a| !a.is_installed()).collect();
 
-                println!("Caching {}", asset.title);
-                cache::write_to_cache(&asset.asset_id, &blob)?;
-                println!("Cached {} to {}.zip", asset.title, asset.asset_id);
+    let archives = fetch_assets(not_installed_assets).await?;
 
-                let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
-                AssetArchive(ZipArchive::new(cursor)?)
-            }
-        };
+    let install_results = install_from_archives(archives).await;
 
-        println!("Installing {}", asset.title);
-        asset.install_folder = assets::install(archive).ok();
+    update_config(&mut config, install_results)?;
+    Ok(())
+}
 
-        println!(
-            "Installed {} to {}!",
-            asset.title,
-            &asset.install_folder.clone().unwrap_or_default()
-        );
+async fn install_from_archives(
+    archives: Vec<AssetArchive>,
+) -> Vec<(String, Result<String, std::io::Error>)> {
+    let mut install_tasks = JoinSet::new();
+
+    for archive in archives {
+        install_tasks.spawn(async move {
+            let archive_id = archive.id.clone();
+            let install_folder = install(archive);
+
+            (archive_id, install_folder)
+        });
     }
 
-    config.save()?;
+    install_tasks.join_all().await
+}
+
+fn resolve_asset_info() -> Result<Vec<AssetInfo>, InstallError> {
+    let config = Config::get()?;
+
+    println!("Resolved asset information");
+    Ok(config.assets)
+}
+
+async fn fetch_assets(assets: Vec<AssetInfo>) -> Result<Vec<AssetArchive>, InstallError> {
+    let mut tasks: JoinSet<Result<AssetArchive, InstallError>> = JoinSet::new();
+
+    for asset in assets {
+        tasks.spawn(async move {
+            let archive: AssetArchive = match cache::get(&asset) {
+                Ok(hit) => hit,
+
+                Err(_) => {
+                    let blob = api::download(&asset).await?;
+                    cache::write_to_cache(&asset.asset_id, &blob)?;
+                    let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
+                    AssetArchive {
+                        id: asset.asset_id.clone(),
+                        archive: ZipArchive::new(cursor)?,
+                    }
+                }
+            };
+
+            Ok(archive)
+        });
+    }
+
+    let results = tasks.join_all().await;
+    let archives = results
+        .into_iter()
+        .filter_map(|result| match result {
+            Ok(archive) => Some(archive),
+            Err(e) => {
+                println!("Failed to fetch archive: {e}");
+                None
+            }
+        })
+        .collect();
+
+    Ok(archives)
+}
+
+fn update_config(
+    config: &mut Config,
+    results: Vec<(String, Result<String, std::io::Error>)>,
+) -> Result<(), std::io::Error> {
+    for (id, result) in results {
+        match result {
+            Ok(install_folder) => config.register_install_folder(&id, install_folder),
+            Err(e) => {
+                println!("Error when processing asset: {e}")
+            }
+        }
+    }
 
     Ok(())
 }

@@ -1,40 +1,36 @@
 use std::fs::File;
 
-use anyhow::Result;
-
 use crate::{
     api::AssetBlob,
     assets::{AssetArchive, AssetInfo},
     traits::ReadSeek,
 };
 
-pub fn write_to_cache(id: &str, archive: &AssetBlob) -> Result<()> {
+pub fn write_to_cache(id: &str, archive: &AssetBlob) -> Result<(), std::io::Error> {
     ensure_cache_dir()?;
 
     let cached_path = path::cache_zip_path(id);
-
-    std::fs::write(cached_path.clone(), &archive.bytes).map_err(|e| error::CacheError::Write {
-        id: id.to_string(),
-        path: cached_path.as_path().into(),
-        error: e,
-    })?;
+    std::fs::write(cached_path.clone(), &archive.bytes)?;
 
     Ok(())
 }
 
-pub fn get(asset: &AssetInfo) -> Result<AssetArchive> {
+pub fn get(asset: &AssetInfo) -> Result<AssetArchive, std::io::Error> {
     ensure_cache_dir()?;
 
     let file_path = path::cache_zip_path(&asset.asset_id);
 
-    let file = File::open(file_path).map_err(|_| error::CacheError::FileOpen)?;
+    let file = File::open(file_path)?;
     let boxed_file: Box<dyn ReadSeek> = Box::new(file);
-    let archive = zip::read::ZipArchive::new(boxed_file).map_err(|_| error::CacheError::ZipRead)?;
+    let archive = zip::read::ZipArchive::new(boxed_file)?;
 
-    Ok(AssetArchive(archive))
+    Ok(AssetArchive {
+        id: asset.asset_id.clone(),
+        archive,
+    })
 }
 
-pub fn clean() -> Result<()> {
+pub fn clean() -> Result<(), std::io::Error> {
     let cache_path = path::cache_path();
     let cache_dir = cache_path.read_dir()?;
 
@@ -56,7 +52,7 @@ pub fn clean() -> Result<()> {
     Ok(())
 }
 
-fn ensure_cache_dir() -> Result<()> {
+fn ensure_cache_dir() -> Result<(), std::io::Error> {
     if !std::fs::exists(path::cache_path())? {
         std::fs::create_dir_all(path::cache_path())?;
     }
@@ -84,25 +80,5 @@ mod path {
             assert!(cache_path().is_relative());
             assert!(cache_zip_path("1234").is_relative());
         }
-    }
-}
-
-mod error {
-    use std::path::Path;
-
-    use thiserror::Error;
-
-    #[derive(Error, Debug)]
-    pub enum CacheError {
-        #[error("Asset zip was not found in cache.")]
-        FileOpen,
-        #[error("Asset zip could not be read - file is possibly corrupted.")]
-        ZipRead,
-        #[error("Asset zip could not be written to cache path. Details: {error}.")]
-        Write {
-            id: String,
-            path: Box<Path>,
-            error: std::io::Error,
-        },
     }
 }

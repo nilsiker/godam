@@ -1,34 +1,45 @@
-use anyhow::Result;
+use thiserror::Error;
 
-use crate::{assets, config::Config};
+use crate::{
+    assets,
+    config::{self, Config},
+};
 
-pub async fn run(id: &str) -> Result<()> {
-    let mut config = Config::get()?;
+#[derive(Error, Debug)]
+pub enum UninstallError {
+    #[error(transparent)]
+    Config(#[from] config::ConfigError),
 
-    match id {
-        "*" => uninstall_all(&mut config),
-        _ => uninstall_single(id, &mut config),
-    }
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Asset {0} does not exist in configuration.")]
+    AssetNotFound(String),
 }
 
-fn uninstall_single(id: &str, config: &mut Config) -> Result<()> {
-    match config.asset(id) {
-        Some(asset) => {
-            assets::uninstall(asset)?;
-            println!(
-                "Asset {} ({}) uninstall successfully, removing folder {}",
-                asset.title,
-                asset.asset_id,
-                asset.install_folder.clone().expect("install folder exists")
-            );
-        }
-        None => println!("Asset with ID {id} not found in configuration."),
+pub async fn run(id: &str) -> Result<(), UninstallError> {
+    let mut config = Config::get()?;
+
+    if id == "*" {
+        uninstall_all(&mut config)?;
+    } else {
+        uninstall_single(id, &mut config)?;
     }
+
+    Ok(())
+}
+
+fn uninstall_single(id: &str, config: &mut Config) -> Result<(), UninstallError> {
+    let asset = config
+        .asset(id)
+        .ok_or(UninstallError::AssetNotFound(id.to_string()))?;
+
+    assets::uninstall(asset)?;
     config.remove_asset(id)?;
     Ok(())
 }
 
-fn uninstall_all(config: &mut Config) -> Result<()> {
+fn uninstall_all(config: &mut Config) -> Result<(), UninstallError> {
     for asset in config.assets.clone() {
         let id = asset.asset_id.clone();
         uninstall_single(&id, config)?;

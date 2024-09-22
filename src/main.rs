@@ -1,19 +1,11 @@
-use anyhow::Result;
 use clap::Parser;
-use godam::{commands::*, Cli};
+use godam::Cli;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     let cli = Cli::parse();
-
-    match &cli.command {
-        Commands::Init => init::run()?,
-        Commands::Search { name } => search::run(name).await?,
-        Commands::Install { name } => install::run(name).await?,
-        Commands::Uninstall { name } => uninstall::run(name).await?,
-        Commands::List => list::run()?,
-        Commands::Clean => clean::run()?,
-    }
-
-    Ok(())
+    
+    godam::run(&cli.command)
+        .await
+        .unwrap_or_else(|e| println!("{e}"));
 }

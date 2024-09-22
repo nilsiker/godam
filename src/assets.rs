@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 
 use anyhow::Result;
 use path::installed_path;
@@ -48,13 +47,6 @@ impl AssetArchive {
         (plugin_name, file_paths)
     }
 
-    pub fn get_out_path(path_under_addon: &str) -> Option<&str> {
-        match path_under_addon.find("addons/") {
-            Some(start) => Some(&path_under_addon[start..]),
-            None => None,
-        }
-    }
-
     pub fn get_plugin_info(&self) -> Option<(String, String)> {
         self.0.file_names().find_map(|file_name| {
             let mut parts = file_name.split('/');
@@ -100,10 +92,10 @@ pub fn install(asset_archive: AssetArchive) -> Result<String> {
 
     for path in zip_paths_to_extract {
         let mut contents = archive.by_name(&path)?;
-        let out_path = match AssetArchive::get_out_path(&path) {
-            Some(path) => PathBuf::new().join(path),
-            None => continue,
+        let Some(out_path) = path::get_out_path_from_archive_path(&path) else {
+            continue;
         };
+
         println!("{out_path:?}");
 
         // create parent dir if not exists
@@ -146,6 +138,13 @@ mod path {
         addons_path().join(install_folder)
     }
 
+    pub fn get_out_path_from_archive_path(archive_path: &str) -> Option<PathBuf> {
+        match archive_path.find("addons/") {
+            Some(start) => Some(PathBuf::new().join(&archive_path[start..])),
+            None => None,
+        }
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -153,6 +152,15 @@ mod path {
         fn paths_are_relative() {
             assert!(addons_path().is_relative());
             assert!(installed_path("some_asset").is_relative());
+
+            assert!(get_out_path_from_archive_path(
+                "C:/Program/Important_Software/addons/some_addon"
+            )
+            .is_some_and(|path| path.is_relative()));
+            assert!(get_out_path_from_archive_path(
+                "/boot/folder_full_of_essentials/addons/some_addon"
+            )
+            .is_some_and(|path| path.is_relative()));
         }
     }
 }

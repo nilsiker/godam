@@ -13,8 +13,8 @@ pub enum UninstallError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("Asset {0} does not exist in configuration.")]
-    AssetNotFound(String),
+    #[error(transparent)]
+    AssetError(#[from] assets::AssetError),
 }
 
 pub async fn run(id: &str) -> Result<(), UninstallError> {
@@ -30,12 +30,17 @@ pub async fn run(id: &str) -> Result<(), UninstallError> {
 }
 
 fn uninstall_single(id: &str, config: &mut Config) -> Result<(), UninstallError> {
-    let asset = config
-        .asset(id)
-        .ok_or(UninstallError::AssetNotFound(id.to_string()))?;
+    let asset = config.asset(id)?;
 
-    assets::uninstall(asset)?;
-    config.remove_asset(id)?;
+    match assets::uninstall(asset) {
+        Ok(()) => println!("Asset {id} successfully uninstalled."),
+        Err(e) => println!("Failed to uninstall asset files: {e}"),
+    }
+
+    match config.remove_asset(id) {
+        Ok(()) => println!("Asset {id} successfully removed from configuration."),
+        Err(e) => println!("Failed to remove asset configuration: {e}"),
+    }
     Ok(())
 }
 

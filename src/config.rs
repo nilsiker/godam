@@ -11,23 +11,8 @@ const ADDONS_GITIGNORE_CONTENT: &str = "*\n!.gitignore\n!godam.toml\n.godam";
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
-    #[error("Configuration not found. Ensure the project is initialized.")]
-    NotFound,
-
-    #[error("Invalid configuration format.")]
-    InvalidFormat,
-
-    #[error("Failed to remove asset from configuration: id {0} not found.")]
+    #[error("Asset {0} is not present in configuration.")]
     AssetNotFound(String),
-
-    #[error("Failed to add asset: {0}")]
-    AssetAdditionFailed(String),
-
-    #[error("Failed to uninstall asset: {0}")]
-    AssetUninstallFailed(String),
-
-    #[error("Failed to write configuration: {0}")]
-    WriteError(std::io::Error),
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -58,8 +43,11 @@ impl Config {
         Ok(config)
     }
 
-    pub fn asset(&self, id: &str) -> Option<&AssetInfo> {
-        self.assets.iter().find(|a| a.asset_id == id)
+    pub fn asset(&self, id: &str) -> Result<&AssetInfo, ConfigError> {
+        self.assets
+            .iter()
+            .find(|a| a.asset_id == id)
+            .ok_or(ConfigError::AssetNotFound(id.to_string()))
     }
 
     fn asset_mut(&mut self, id: &str) -> Option<&mut AssetInfo> {
@@ -111,15 +99,15 @@ impl Config {
         Ok(std::fs::write(toml_path, str)?)
     }
 
-    pub fn register_install_folder(&mut self, id: &str, install_folder: String) {
+    pub fn register_install_folder(
+        &mut self,
+        id: &str,
+        install_folder: String,
+    ) -> Result<(), ConfigError> {
         match self.asset_mut(id) {
             Some(asset) => asset.install_folder = Some(install_folder),
             None => println!("Asset ID not found in configuration"),
         }
-        self.save().expect("can save config");
-    }
-
-    pub fn contains_asset(&self, id: &str) -> bool {
-        self.asset(id).is_some()
+        self.save()
     }
 }

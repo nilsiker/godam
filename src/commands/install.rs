@@ -30,7 +30,7 @@ pub enum InstallError {
 pub async fn run(id: &Option<String>) -> Result<(), InstallError> {
     let mut config = Config::get()?;
     if let Some(id) = id {
-        if config.asset(id).is_none() {
+        if config.asset(id).is_err() {
             let asset = api::get_asset_by_id(id).await?;
             config.add_asset(asset)?;
         }
@@ -42,27 +42,30 @@ pub async fn run(id: &Option<String>) -> Result<(), InstallError> {
 
     let archives = fetch_assets(not_installed_assets).await?;
 
-    let install_results = install_from_archives(archives).await;
+    let successful_installs = install_from_archives(archives).await;
 
-    update_config(&mut config, install_results)?;
+    update_config(&mut config, successful_installs)?;
     Ok(())
 }
 
-async fn install_from_archives(
-    archives: Vec<AssetArchive>,
-) -> Vec<(String, Result<String, std::io::Error>)> {
+async fn install_from_archives(archives: Vec<AssetArchive>) -> Vec<(String, String)> {
     let mut install_tasks = JoinSet::new();
 
     for archive in archives {
         install_tasks.spawn(async move {
             let archive_id = archive.id.clone();
-            let install_folder = install(archive);
-
-            (archive_id, install_folder)
+            match install(archive) {
+                Ok(install_folder) => Some((archive_id, install_folder)),
+                Err(e) => {
+                    println!("Error while installing asset {archive_id}: {e}");
+                    None
+                }
+            }
         });
     }
 
-    install_tasks.join_all().await
+    let results = install_tasks.join_all().await;
+    results.into_iter().flatten().collect()
 }
 
 fn resolve_asset_info() -> Result<Vec<AssetInfo>, InstallError> {
@@ -110,17 +113,9 @@ async fn fetch_assets(assets: Vec<AssetInfo>) -> Result<Vec<AssetArchive>, Insta
     Ok(archives)
 }
 
-fn update_config(
-    config: &mut Config,
-    results: Vec<(String, Result<String, std::io::Error>)>,
-) -> Result<(), std::io::Error> {
-    for (id, result) in results {
-        match result {
-            Ok(install_folder) => config.register_install_folder(&id, install_folder),
-            Err(e) => {
-                println!("Error when processing asset: {e}")
-            }
-        }
+fn update_config(config: &mut Config, results: Vec<(String, String)>) -> Result<(), InstallError> {
+    for (id, install_folder) in results {
+        config.register_install_folder(&id, install_folder)?;
     }
 
     Ok(())

@@ -1,10 +1,10 @@
-pub mod api;
-pub mod assets;
-pub mod cache;
-pub mod commands;
-pub mod config;
-pub mod godot;
-pub mod traits;
+mod api;
+mod assets;
+mod cache;
+mod commands;
+mod config;
+mod godot;
+mod traits;
 
 use clap::Parser;
 use commands::*;

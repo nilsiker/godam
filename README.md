@@ -65,7 +65,7 @@ Using **godam**, let us install [LimboAI for Godot 4.3](https://godotengine.org/
 
 4. Look up Godot Asset Library IDs using `godam search LimboAI`
 
-5. Install the asset using `godam install <ID RETURNED BY STEP 3>`
+5. Install the asset using `godam install 3228`
 
 6. List **godam**-managed assets using `godam list`
  

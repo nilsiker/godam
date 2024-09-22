@@ -1,4 +1,3 @@
-
 use anyhow::Result;
 use path::installed_path;
 use serde::{Deserialize, Serialize};
@@ -95,8 +94,6 @@ pub fn install(asset_archive: AssetArchive) -> Result<String> {
         let Some(out_path) = path::get_out_path_from_archive_path(&path) else {
             continue;
         };
-
-        println!("{out_path:?}");
 
         // create parent dir if not exists
         if let Some(parent) = out_path.parent() {

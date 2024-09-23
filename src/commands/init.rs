@@ -1,11 +1,24 @@
-use crate::config::{self, Config};
+use console::style;
+
+use crate::{
+    config::{self, Config},
+    BLUE, ORANGE,
+};
 
 pub fn run() -> Result<(), config::ConfigError> {
     if Config::get().is_err() {
         Config::init()?;
-        println!("Project initialized. Next, add assets using godam add <name>");
+        println!(
+            "{}",
+            style("godam: Project initialized. Try searching for asset IDs using 'godam search <name>'")
+                .color256(BLUE)
+        );
     } else {
-        println!("Project already initialized. Try adding assets using godam install <name>");
+        println!(
+            "{}",
+            style("godam: Project already initialized. Try searching for asset IDs using 'godam search <name>'")
+                .color256(ORANGE)
+        )
     }
     Ok(())
 }

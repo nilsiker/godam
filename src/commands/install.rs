@@ -28,12 +28,15 @@ pub enum InstallError {
     Zip(#[from] zip::result::ZipError),
 }
 
-pub async fn run(id: &Option<String>) -> Result<(), InstallError> {
+pub async fn run(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
     let mut config = Config::get()?;
-    if let Some(id) = id {
-        if config.asset(id).is_err() {
-            let asset = api::get_asset_by_id(id).await?;
-            config.add_asset(asset)?;
+
+    if let Some(ids) = ids {
+        for id in ids {
+            if config.asset(id).is_err() {
+                let asset = api::get_asset_by_id(id).await?;
+                config.add_asset(asset)?;
+            }
         }
     }
 
@@ -91,15 +94,12 @@ async fn fetch_assets(
     let mut tasks: JoinSet<Result<AssetArchive, InstallError>> = JoinSet::new();
 
     for asset in assets {
-        let pb = progress.start_single(asset.title.clone());
+        let pb = progress.start_single(asset.title.clone(), Some("    "));
 
         tasks.spawn(async move {
             let archive: AssetArchive = match cache::get(&asset) {
                 Ok(hit) => {
-                    Progress::finish_single(
-                        pb,
-                        format!("{}: {}", asset.asset_id, asset.title),
-                    );
+                    Progress::finish_single(pb, format!("{}: {}", asset.asset_id, asset.title));
                     hit
                 }
 
@@ -107,10 +107,7 @@ async fn fetch_assets(
                     let blob = api::download(&asset).await?;
                     cache::write_to_cache(&asset.asset_id, &blob)?;
                     let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
-                    Progress::finish_single(
-                        pb,
-                        format!("{}: {}", asset.asset_id, asset.title),
-                    );
+                    Progress::finish_single(pb, format!("{}: {}", asset.asset_id, asset.title));
 
                     AssetArchive {
                         id: asset.asset_id.clone(),
@@ -146,7 +143,7 @@ async fn extract_from_archives(
 
     for archive in archives {
         let archive_id = archive.id.clone();
-        let pb = progress.start_single(format!("{archive_id}.zip..."));
+        let pb = progress.start_single(format!("{archive_id}.zip..."), Some("    "));
         install_tasks.spawn(async move {
             match install(archive) {
                 Ok(install_folder) => {

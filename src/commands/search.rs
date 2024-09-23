@@ -1,3 +1,4 @@
+use console::style;
 use thiserror::Error;
 
 use crate::{
@@ -16,23 +17,21 @@ pub async fn run(asset_name: &str) -> Result<(), SearchError> {
     let version = godot::get_project_version()?;
     let assets = api::get_assets_by_name(asset_name, &version).await?;
 
-    println!(
-        "\nGodam found {} {} from the Godot Asset Library:\n",
-        assets.len(),
-        if assets.len() > 1 {
-            "results"
-        } else {
-            "result"
-        }
-    );
+    if !assets.is_empty() {
+        println!("{}", style("\nGodot Asset Library Search").underlined().bold());
+    }
+
     for AssetSearchResult { title, asset_id } in &assets {
-        println!("- ID: {asset_id} ({title})");
+        println!("{}: {title}", style(asset_id).bold());
     }
 
     if !assets.is_empty() {
-        println!("\nInstall an asset using [godam install <ID>]\n");
+        println!(
+            "\ngodam: {} assets found, try installing an asset using 'godam install <ID>'\n",
+            assets.len()
+        );
     } else {
-        println!("Try a different query!\n");
+        println!("godam: No results found, try a different query!\n");
     }
 
     Ok(())

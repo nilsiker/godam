@@ -23,11 +23,11 @@ impl Progress {
         Self(MultiProgress::new(), HashMap::new())
     }
 
-    pub fn start_single(&self, msg: String) -> ProgressBar {
+    pub fn start_single(&self, msg: String, prefix: Option<&str>) -> ProgressBar {
         let msg = style(msg).dim().to_string();
         let pb = self.0.add(
             ProgressBar::new_spinner()
-                .with_style(progress_style("    "))
+                .with_style(progress_style(prefix.unwrap_or_default()))
                 .with_message(msg),
         );
 
@@ -52,7 +52,7 @@ impl Progress {
         };
 
         let style = match step {
-            Step::Resolve | Step::Fetch | Step::Extract => progress_style(""),
+            Step::Resolve | Step::Fetch | Step::Extract => progress_style("  "),
         };
 
         let pb = self.0.add(

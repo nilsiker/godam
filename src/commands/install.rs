@@ -9,6 +9,7 @@ use crate::{
     assets::{install, AssetArchive, AssetInfo},
     cache,
     config::{self, Config},
+    console::{Progress, Step},
     traits::ReadSeek,
 };
 
@@ -27,59 +28,57 @@ pub enum InstallError {
     Zip(#[from] zip::result::ZipError),
 }
 
-pub async fn run(id: &Option<String>) -> Result<(), InstallError> {
+pub async fn run(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
     let mut config = Config::get()?;
-    if let Some(id) = id {
-        if config.asset(id).is_err() {
-            let asset = api::get_asset_by_id(id).await?;
-            config.add_asset(asset)?;
+
+    if let Some(ids) = ids {
+        for id in ids {
+            if config.asset(id).is_err() {
+                let asset = api::get_asset_by_id(id).await?;
+                config.add_asset(asset)?;
+            }
         }
     }
 
-    let assets = resolve_asset_info()?;
-    println!("Resolved asset information");
+    let mut progress = Progress::new();
+
+    progress.start(Step::Resolve);
+    let assets = match resolve_asset_info() {
+        Ok(assets) => {
+            progress.finish(Step::Resolve);
+            assets
+        }
+        Err(e) => {
+            progress.abandon(Step::Resolve, Box::new(e));
+            return Ok(());
+        }
+    };
 
     let not_installed_assets: Vec<AssetInfo> =
         assets.into_iter().filter(|a| !a.is_installed()).collect();
 
-    if not_installed_assets.len() > 0 {}
-    println!("Installing {} assets...", not_installed_assets.len());
-
-    let archives = fetch_assets(not_installed_assets).await?;
-    println!("Fetched {} asset archives.", archives.len());
-
-    let successful_installs = install_from_archives(archives).await;
-    println!(
-        "Successfully installed assets:\n- {}",
-        successful_installs
-            .iter()
-            .map(|i| i.1.clone())
-            .collect::<Vec<String>>()
-            .join("\n- ")
-    );
-
-    update_config(&mut config, successful_installs)?;
-    Ok(())
-}
-
-async fn install_from_archives(archives: Vec<AssetArchive>) -> Vec<(String, String)> {
-    let mut install_tasks = JoinSet::new();
-
-    for archive in archives {
-        install_tasks.spawn(async move {
-            let archive_id = archive.id.clone();
-            match install(archive) {
-                Ok(install_folder) => Some((archive_id, install_folder)),
-                Err(e) => {
-                    println!("Error while installing asset {archive_id}: {e}");
-                    None
-                }
-            }
-        });
+    if not_installed_assets.is_empty() {
+        return Ok(());
     }
 
-    let results = install_tasks.join_all().await;
-    results.into_iter().flatten().collect()
+    progress.start(Step::Fetch);
+    let archives = match fetch_assets(not_installed_assets, &progress).await {
+        Ok(archives) => {
+            progress.finish(Step::Fetch);
+            archives
+        }
+        Err(e) => {
+            progress.abandon(Step::Fetch, Box::new(e));
+            return Ok(());
+        }
+    };
+
+    progress.start(Step::Extract);
+    let successful_extracts = extract_from_archives(archives, &progress).await;
+    progress.finish(Step::Extract);
+
+    update_config(&mut config, successful_extracts)?;
+    Ok(())
 }
 
 fn resolve_asset_info() -> Result<Vec<AssetInfo>, InstallError> {
@@ -88,18 +87,28 @@ fn resolve_asset_info() -> Result<Vec<AssetInfo>, InstallError> {
     Ok(config.assets)
 }
 
-async fn fetch_assets(assets: Vec<AssetInfo>) -> Result<Vec<AssetArchive>, InstallError> {
+async fn fetch_assets(
+    assets: Vec<AssetInfo>,
+    progress: &Progress,
+) -> Result<Vec<AssetArchive>, InstallError> {
     let mut tasks: JoinSet<Result<AssetArchive, InstallError>> = JoinSet::new();
 
     for asset in assets {
+        let pb = progress.start_single(asset.title.clone(), Some("    "));
+
         tasks.spawn(async move {
             let archive: AssetArchive = match cache::get(&asset) {
-                Ok(hit) => hit,
+                Ok(hit) => {
+                    Progress::finish_single(pb, format!("{}: {}", asset.asset_id, asset.title));
+                    hit
+                }
 
                 Err(_) => {
                     let blob = api::download(&asset).await?;
                     cache::write_to_cache(&asset.asset_id, &blob)?;
                     let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
+                    Progress::finish_single(pb, format!("{}: {}", asset.asset_id, asset.title));
+
                     AssetArchive {
                         id: asset.asset_id.clone(),
                         archive: ZipArchive::new(cursor)?,
@@ -124,6 +133,33 @@ async fn fetch_assets(assets: Vec<AssetInfo>) -> Result<Vec<AssetArchive>, Insta
         .collect();
 
     Ok(archives)
+}
+
+async fn extract_from_archives(
+    archives: Vec<AssetArchive>,
+    progress: &Progress,
+) -> Vec<(String, String)> {
+    let mut install_tasks = JoinSet::new();
+
+    for archive in archives {
+        let archive_id = archive.id.clone();
+        let pb = progress.start_single(format!("{archive_id}.zip..."), Some("    "));
+        install_tasks.spawn(async move {
+            match install(archive) {
+                Ok(install_folder) => {
+                    Progress::finish_single(pb, format!("{archive_id}.zip"));
+                    Some((archive_id, install_folder))
+                }
+                Err(e) => {
+                    Progress::abandon_single(pb, format!("{archive_id}.zip: {e}"));
+                    None
+                }
+            }
+        });
+    }
+
+    let results = install_tasks.join_all().await;
+    results.into_iter().flatten().collect()
 }
 
 fn update_config(config: &mut Config, results: Vec<(String, String)>) -> Result<(), InstallError> {

@@ -8,10 +8,7 @@ use crate::assets::AssetInfo;
 
 #[derive(Error, Debug)]
 #[error("API request failed: {0}")]
-pub struct ApiError(
-    #[from]
-    reqwest::Error,
-);
+pub struct ApiError(#[from] reqwest::Error);
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct AssetResponse {
@@ -57,8 +54,11 @@ pub async fn get_asset_by_id(id: &str) -> Result<AssetInfo, ApiError> {
     Ok(asset)
 }
 
-pub async fn download(asset: &AssetInfo) -> Result<AssetBlob, ApiError> {
+pub async fn download(
+    asset: &AssetInfo,
+) -> Result<AssetBlob, ApiError> {
     let resp = reqwest::get(&asset.download_url).await?;
+
     let bytes = resp.bytes().await?;
 
     Ok(AssetBlob {

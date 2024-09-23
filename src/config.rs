@@ -25,6 +25,8 @@ pub enum ConfigError {
 
     #[error("Godot error: {0}")]
     GodotError(#[from] godot::GodotError),
+    #[error("Project is not initialized, try 'godam init'.")]
+    Uninitialized,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -37,7 +39,7 @@ impl Config {
         let toml_path = std::env::current_dir()
             .map_err(ConfigError::from)?
             .join(CONFIG_RELATIVE_PATH);
-        let string = std::fs::read_to_string(toml_path)?;
+        let string = std::fs::read_to_string(toml_path).map_err(|_| ConfigError::Uninitialized)?;
         let config = toml::from_str(&string)?;
 
         Ok(config)

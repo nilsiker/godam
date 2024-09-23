@@ -3,11 +3,15 @@ mod assets;
 mod cache;
 mod commands;
 mod config;
+mod console;
 mod godot;
 mod traits;
 
 use clap::Parser;
 use commands::*;
+
+pub static ORANGE: u8 = 214;
+pub static BLUE: u8 = 39;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None, arg_required_else_help = true)]

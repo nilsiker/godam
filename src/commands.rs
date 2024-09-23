@@ -24,7 +24,7 @@ pub enum Commands {
     Install {
         /// The name of the asset you want to install
         #[arg(index = 1)]
-        name: Option<String>,
+        name: Option<Vec<String>>,
     },
     /// Uninstalls the specified addon from your Godot project, removing it from the godam configuration.
     #[command(alias = "u")]

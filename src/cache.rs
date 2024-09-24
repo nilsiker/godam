@@ -1,9 +1,13 @@
 use std::fs::File;
 
+use path::cache_zip_path;
+
 use crate::{
     api::AssetBlob,
     assets::{AssetArchive, AssetInfo},
+    info,
     traits::ReadSeek,
+    warn,
 };
 
 pub fn write_to_cache(id: &str, archive: &AssetBlob) -> Result<(), std::io::Error> {
@@ -30,25 +34,29 @@ pub fn get(asset: &AssetInfo) -> Result<AssetArchive, std::io::Error> {
     })
 }
 
-pub fn clean() -> Result<(), std::io::Error> {
+pub fn is_zip_cached(id: &str) -> Result<bool, std::io::Error> {
+    std::fs::exists(cache_zip_path(id))
+}
+
+pub fn remove_from_cache(id: &str) -> Result<(), std::io::Error> {
+    let cache_path = path::cache_zip_path(id);
+    std::fs::remove_file(cache_path)
+}
+
+pub fn clear() -> Result<(), std::io::Error> {
     let cache_path = path::cache_path();
     let cache_dir = cache_path.read_dir()?;
-
-    let mut removed = vec![];
 
     for entry in cache_dir {
         match entry {
             Ok(entry) => {
                 std::fs::remove_file(entry.path())?;
-                removed.push(entry.file_name());
+                info!("Removed {} from cache", entry.file_name().to_string_lossy())
             }
-            Err(_) => panic!("should not happen"),
+            Err(e) => warn!("Failed when removing archive from cache: {e}"),
         }
     }
-    println!("removed {} cached assets", removed.len());
-    for path in removed {
-        println!("- {}", path.into_string().expect("ok path"));
-    }
+
     Ok(())
 }
 

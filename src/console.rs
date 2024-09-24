@@ -1,97 +1,55 @@
-use std::collections::HashMap;
-
 use console::style;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle};
 
-use crate::{BLUE, ORANGE};
+pub static ORANGE: u8 = 214;
+pub static BLUE: u8 = 39;
 
-pub fn progress_style(prefix: &str) -> ProgressStyle {
-    let template = "{spinner:.cyan} {msg}";
-    ProgressStyle::with_template(&format!("{prefix}{template}")).unwrap()
+pub fn progress_style() -> ProgressStyle {
+    ProgressStyle::with_template("{spinner:.cyan:>2} {msg}").unwrap()
 }
 
-#[derive(PartialEq, Eq, Hash)]
-pub enum Step {
-    Resolve,
-    Fetch,
-    Extract,
+#[macro_export]
+macro_rules! info {
+    ($($arg:tt)*) => {{
+        println!("  {}", console::style(format_args!($($arg)*)).color256(crate::console::BLUE))
+    }};
 }
 
-pub struct Progress(MultiProgress, HashMap<Step, ProgressBar>);
-impl Progress {
-    pub fn new() -> Self {
-        Self(MultiProgress::new(), HashMap::new())
+#[macro_export]
+macro_rules! warn {
+    ($($arg:tt)*) => {{
+        println!("  {}", console::style(format_args!($($arg)*)).color256(crate::console::ORANGE))
+    }};
+}
+
+pub trait GodamProgressMessage {
+    fn running(&self, action: &str, msg: &str);
+    fn finished(&self, action: &str, msg: &str);
+    fn failed(&self, msg: &str, reason: &str);
+}
+
+impl GodamProgressMessage for ProgressBar {
+    fn running(&self, action: &str, msg: &str) {
+        self.set_message(format!(
+            "{} {}",
+            style(action).color256(BLUE).dim(),
+            style(msg).white().dim()
+        ));
     }
 
-    pub fn start_single(&self, msg: String, prefix: Option<&str>) -> ProgressBar {
-        let msg = style(msg).dim().to_string();
-        let pb = self.0.add(
-            ProgressBar::new_spinner()
-                .with_style(progress_style(prefix.unwrap_or_default()))
-                .with_message(msg),
-        );
-
-        pb.enable_steady_tick(std::time::Duration::from_millis(100));
-        pb
+    fn finished(&self, action: &str, msg: &str) {
+        self.finish_with_message(format!(
+            "{} {}",
+            style(action).color256(BLUE),
+            style(msg).white()
+        ));
     }
 
-    pub fn finish_single(bar: ProgressBar, msg: String) {
-        // bar.finish_and_clear();
-        bar.finish_with_message(style(msg).color256(BLUE).to_string());
-    }
-
-    pub fn abandon_single(bar: ProgressBar, msg: String) {
-        bar.abandon_with_message(style(msg).color256(ORANGE).to_string());
-    }
-
-    pub fn start(&mut self, step: Step) {
-        let msg = match step {
-            Step::Resolve => style("Resolving assets...").to_string(),
-            Step::Fetch => style("Fetching assets...").to_string(),
-            Step::Extract => style("Unpacked assets...").to_string(),
-        };
-
-        let style = match step {
-            Step::Resolve | Step::Fetch | Step::Extract => progress_style("  "),
-        };
-
-        let pb = self.0.add(
-            ProgressBar::new_spinner()
-                .with_style(style)
-                .with_message(msg),
-        );
-        pb.enable_steady_tick(std::time::Duration::from_millis(100));
-
-        self.1.insert(step, pb);
-    }
-
-    pub fn finish(&self, step: Step) {
-        let msg = match step {
-            Step::Resolve => style("Resolved assets").color256(BLUE).to_string(),
-            Step::Fetch => style("Fetched assets").color256(BLUE).to_string(),
-            Step::Extract => style("Unpacked assets").color256(BLUE).to_string(),
-        };
-
-        if let Some(pb) = self.1.get(&step) {
-            pb.finish_with_message(msg);
-        }
-    }
-
-    pub fn abandon(&self, step: Step, error: Box<dyn std::error::Error>) {
-        let msg = match step {
-            Step::Resolve => style(format!("Resolving assets failed: {error}"))
-                .color256(ORANGE)
-                .to_string(),
-            Step::Fetch => style(format!("Resolving assets failed: {error}"))
-                .color256(ORANGE)
-                .to_string(),
-            Step::Extract => style(format!("Resolving assets failed: {error}"))
-                .color256(ORANGE)
-                .to_string(),
-        };
-
-        if let Some(pb) = self.1.get(&step) {
-            pb.finish_with_message(msg);
-        }
+    fn failed(&self, msg: &str, reason: &str) {
+        self.abandon_with_message(format!(
+            "{}: {} ({reason})",
+            style("Failed").color256(ORANGE),
+            style(msg).white()
+        ));
     }
 }

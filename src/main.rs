@@ -1,13 +1,11 @@
 use clap::Parser;
-use console::style;
-use godam::{Cli, ORANGE};
+use godam::Cli;
 
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
 
-    godam::run(&cli.command).await.unwrap_or_else(|e| {
-        let msg = style(format!("godam: {e}")).color256(ORANGE);
-        println!("{msg}");
-    })
+    if let Err(e) = godam::run(&cli.command).await {
+        eprintln!("godam: {e}");
+    }
 }

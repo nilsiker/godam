@@ -1,9 +1,10 @@
+use indicatif::{MultiProgress, ProgressBar};
 use thiserror::Error;
 
 use crate::{
     assets,
     config::{self, Config},
-    console::Progress,
+    console::{progress_style, GodamProgressMessage},
 };
 
 #[derive(Error, Debug)]
@@ -21,7 +22,7 @@ pub enum UninstallError {
 pub async fn run(id: &str) -> Result<(), UninstallError> {
     let mut config = Config::get()?;
 
-    let progress = Progress::new();
+    let progress = MultiProgress::new();
 
     if id == "*" {
         uninstall_all(&mut config, &progress)?;
@@ -31,53 +32,36 @@ pub async fn run(id: &str) -> Result<(), UninstallError> {
     Ok(())
 }
 
-fn uninstall_single(id: &str, config: &mut Config, progress: &Progress) {
-    let uninstalling = progress.start_single(format!("Uninstalling {id}"), Some("  "));
-    let uninstalling_files = progress.start_single(format!("Removing addon folder",), Some("   "));
-    let removing_from_godam =
-        progress.start_single(format!("Removing from godam configuration"), Some("   "));
+fn uninstall_single(id: &str, config: &mut Config, progress: &MultiProgress) {
+    let pb = progress.add(ProgressBar::new_spinner().with_style(progress_style()));
 
     let asset = match config.asset(id) {
         Ok(asset) => asset.clone(),
         Err(e) => {
-            Progress::abandon_single(
-                uninstalling,
-                format!("Asset is not managed by godam {}: {e}", id),
-            );
+            pb.failed(id, &e.to_string());
             return;
         }
     };
 
+    pb.running("Uninstalling", &asset.title);
     match assets::uninstall(&asset) {
         Ok(()) => (),
         Err(e) => {
-            Progress::abandon_single(
-                uninstalling_files,
-                format!("Warning: could not remove addon files {}: {e}", asset.title),
-            );
+            pb.failed(id, &e.to_string());
         }
     }
-
+    pb.running("Removing", &asset.title);
     match config.remove_asset(id) {
         Ok(()) => (),
         Err(e) => {
-            Progress::abandon_single(
-                removing_from_godam,
-                format!(
-                    "Warning: could not update godam configuration {}: {e}",
-                    asset.title
-                ),
-            );
+            pb.failed(&asset.title, &e.to_string());
             return;
         }
     }
-    Progress::finish_single(
-        uninstalling,
-        format!("Successfully removed {}", asset.title),
-    );
+    pb.finished("Removed", &asset.title);
 }
 
-fn uninstall_all(config: &mut Config, progress: &Progress) -> Result<(), UninstallError> {
+fn uninstall_all(config: &mut Config, progress: &MultiProgress) -> Result<(), UninstallError> {
     for asset in config.assets.clone() {
         let id = asset.asset_id.clone();
         uninstall_single(&id, config, &progress);

@@ -1,16 +1,38 @@
-
-use crate::config::{Config, ConfigError};
+use crate::{
+    assets::AssetInfo,
+    config::{Config, ConfigError},
+    info,
+};
 
 pub fn run() -> Result<(), ConfigError> {
     let config = Config::get()?;
 
-    println!("godam: found {} assets in configuration:\n", config.assets.len());
-    for asset in config.assets {
-        println!(
-            "    - {}\n\tTitle: {}\n\tInstall folder: {}\n",
-            asset.asset_id,
-            asset.title,
-            asset.install_folder.unwrap_or("not installed".to_string())
+    let longest_id_length = config
+        .assets
+        .iter()
+        .max_by(|a, b| a.asset_id.len().cmp(&b.asset_id.len()))
+        .expect("one is longest")
+        .asset_id
+        .len();
+
+    let longest_title = config
+        .assets
+        .iter()
+        .max_by(|a, b| a.title.len().cmp(&b.title.len()))
+        .expect("one is longest")
+        .title
+        .len();
+
+    for AssetInfo {
+        asset_id: id,
+        title,
+        ..
+    } in config.assets
+    {
+        info!(
+            "{id:>width$}: {title:<title_width$}",
+            width = longest_id_length,
+            title_width = longest_title
         )
     }
 

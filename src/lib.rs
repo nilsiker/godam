@@ -10,9 +10,6 @@ mod traits;
 use clap::Parser;
 use commands::*;
 
-pub static ORANGE: u8 = 214;
-pub static BLUE: u8 = 39;
-
 #[derive(Parser)]
 #[command(version, about, long_about = None, arg_required_else_help = true)]
 #[command(propagate_version = true)]
@@ -32,7 +29,7 @@ pub async fn run(command: &Commands) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Uninstall { name } => uninstall::run(name).await?,
         Commands::List => list::run()?,
         Commands::Clean => clean::run()?,
-    }
+    };
 
     Ok(())
 }

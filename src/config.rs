@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -35,18 +37,19 @@ pub enum ConfigError {
 pub struct Config {
     pub godot_version: Version,
     pub assets: Vec<AssetInfo>,
+    pub install_folders: HashMap<String, String>,
 }
+
 impl Config {
     pub fn get() -> Result<Self, ConfigError> {
         let config_path = get_config_path();
-        let string =
-            crate::fs::read_string(config_path).map_err(|_| ConfigError::Uninitialized)?;
+        let string = crate::fs::read_string(config_path).map_err(|_| ConfigError::Uninitialized)?;
         let config = toml::from_str(&string)?;
 
         Ok(config)
     }
 
-    pub fn asset(&self, id: &str) -> Result<&AssetInfo, ConfigError> {
+    pub fn get_asset(&self, id: &str) -> Result<&AssetInfo, ConfigError> {
         self.assets
             .iter()
             .find(|a| a.asset_id == id)
@@ -57,12 +60,41 @@ impl Config {
         self.assets.iter_mut().find(|a| a.asset_id == id)
     }
 
+    pub fn get_id_from_install_folder(&self, install_folder: &str) -> Option<&String> {
+        match self
+            .install_folders
+            .iter()
+            .find(|entry| entry.1 == install_folder)
+        {
+            Some(entry) => Some(&entry.0),
+            None => None,
+        }
+    }
+
+    pub fn get_install_folders(&self) -> Vec<&String> {
+        self.install_folders.values().collect()
+    }
+
+    pub fn get_install_folder(&self, asset_id: &str) -> Option<&String> {
+        self.install_folders.get(asset_id)
+    }
+
+    pub fn set_install_folder(
+        &mut self,
+        id: &str,
+        install_folder: String,
+    ) -> Result<(), ConfigError> {
+        self.install_folders.insert(id.to_string(), install_folder);
+        self.save()
+    }
+
     pub fn init() -> Result<(), ConfigError> {
         let version = godot::get_project_version()?;
 
         let config = Config {
             assets: vec![],
             godot_version: version,
+            install_folders: HashMap::new(),
         };
 
         let contents = toml::to_string(&config)?;
@@ -87,31 +119,25 @@ impl Config {
         Ok(())
     }
 
-    pub fn remove_asset(&mut self, id: &str) -> Result<(), ConfigError> {
-        match self.assets.iter().position(|asset| asset.asset_id == id) {
+    pub fn remove_asset(&mut self, asset_id: &str) -> Result<(), ConfigError> {
+        match self
+            .assets
+            .iter()
+            .position(|asset| asset.asset_id == asset_id)
+        {
             Some(index) => {
                 self.assets.remove(index);
-                self.save()
             }
-            None => Err(ConfigError::AssetNotFound(id.to_string())),
-        }
+            None => return Err(ConfigError::AssetNotFound(asset_id.to_string())),
+        };
+
+        self.install_folders.remove(asset_id);
+        self.save()
     }
 
     pub fn save(&self) -> Result<(), ConfigError> {
         let config_path = get_config_path();
         let str = toml::to_string_pretty(self)?;
         Ok(crate::fs::safe_write(config_path, str)?)
-    }
-
-    pub fn register_install_folder(
-        &mut self,
-        id: &str,
-        install_folder: String,
-    ) -> Result<(), ConfigError> {
-        match self.asset_mut(id) {
-            Some(asset) => asset.install_folder = Some(install_folder),
-            None => println!("Asset ID not found in configuration"),
-        }
-        self.save()
     }
 }

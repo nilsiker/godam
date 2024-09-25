@@ -10,7 +10,7 @@ use zip::ZipArchive;
 
 use crate::{
     api,
-    assets::{self, AssetArchive, AssetInfo},
+    assets::{self, get_install_folders_in_project, AssetArchive, AssetInfo},
     cache,
     config::{self, Config},
     console::{progress_style, GodamProgressMessage},
@@ -34,6 +34,8 @@ pub enum InstallError {
 
     #[error(transparent)]
     Asset(#[from] assets::AssetError),
+    #[error("An error occured when locking resources for a thread.")]
+    Mutex,
 }
 
 pub async fn run(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
@@ -41,7 +43,7 @@ pub async fn run(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
 
     if let Some(ids) = ids {
         for id in ids {
-            if config.asset(id).is_err() {
+            if config.get_asset(id).is_err() {
                 match api::get_asset_by_id(id).await {
                     Ok(asset) => config.add_asset(asset)?,
                     Err(e) => warn!("{e}"),
@@ -53,13 +55,21 @@ pub async fn run(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
     let progress = MultiProgress::new();
 
     let assets = Config::get()?.assets;
+    let install_folders = get_install_folders_in_project()?;
 
-    let not_installed_assets: Vec<AssetInfo> =
-        assets.into_iter().filter(|a| !a.is_installed()).collect();
-
-    if not_installed_assets.is_empty() {
-        return Ok(());
-    }
+    let not_installed_assets: Vec<AssetInfo> = assets
+        .into_iter()
+        .filter_map(|asset| {
+            let Some(folder) = config.get_install_folder(&asset.asset_id) else {
+                return Some(asset);
+            };
+            if install_folders.contains(folder) {
+                None
+            } else {
+                Some(asset)
+            }
+        })
+        .collect();
 
     let config = Arc::new(Mutex::new(config));
 
@@ -88,11 +98,11 @@ async fn install_asset(
     config: Arc<Mutex<Config>>,
 ) -> Result<(), InstallError> {
     progress.running("Fetching", &asset.title);
-    let archive: AssetArchive = match cache::get(asset) {
+    let archive: AssetArchive = match cache::get(&asset) {
         Ok(hit) => hit,
 
         Err(_) => {
-            let blob = api::download(asset).await?;
+            let blob = api::download(&asset).await?;
             cache::write_to_cache(&asset.asset_id, &blob)?;
             let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
             AssetArchive {
@@ -101,6 +111,29 @@ async fn install_asset(
             }
         }
     };
+
+    // register install folder before installing
+    match config.lock() {
+        Ok(mut config) => {
+            let install_folder_name = match archive.get_plugin_info() {
+                Some((name, _)) => name,
+                None => {
+                    return Err(InstallError::Asset(
+                        assets::AssetError::InvalidAssetStructure(
+                            "Could not find plugin name".to_string(),
+                        ),
+                    ))
+                }
+            };
+            if let Err(e) = config.set_install_folder(&asset.asset_id, install_folder_name) {
+                progress.failed(&asset.title, &e.to_string());
+            }
+        }
+        Err(e) => {
+            progress.failed(&asset.title, &e.to_string());
+            return Err(InstallError::Mutex);
+        }
+    }
 
     progress.running("Unpacking", &asset.title);
     let folder = match assets::install(archive).map_err(InstallError::from) {
@@ -111,15 +144,7 @@ async fn install_asset(
         }
     };
 
-    progress.running("Updating", &asset.title);
-
-    match config.lock() {
-        Ok(mut config) => match config.register_install_folder(&asset.asset_id, folder) {
-            Ok(()) => progress.finished("Installed", &asset.title),
-            Err(e) => progress.failed(&asset.title, &e.to_string()),
-        },
-        Err(e) => progress.failed(&asset.title, &e.to_string()),
-    }
+    progress.finished("Installed", &asset.title);
 
     Ok(())
 }

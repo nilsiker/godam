@@ -2,9 +2,10 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
+    config::{Config, ConfigError},
     fs::{
-        exists,
-        path::{get_install_folder_path, get_out_path_from_archive_path},
+        self,
+        path::{get_addons_path, get_install_folder_path, get_out_path_from_archive_path},
         safe_remove_dir,
     },
     traits::ReadSeek,
@@ -20,6 +21,8 @@ pub enum AssetError {
     Zip(#[from] zip::result::ZipError),
     #[error("Asset {0} is not installed")]
     NotInstalled(String),
+    #[error(transparent)]
+    Config(#[from] ConfigError),
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
@@ -27,17 +30,6 @@ pub struct AssetInfo {
     pub asset_id: String,
     pub title: String,
     pub download_url: String,
-    pub install_folder: Option<String>,
-}
-
-impl AssetInfo {
-    pub fn is_installed(&self) -> bool {
-        if let Some(install_folder) = &self.install_folder {
-            exists(&get_install_folder_path(install_folder)).is_ok_and(|exists| exists)
-        } else {
-            false
-        }
-    }
 }
 
 use zip::ZipArchive;
@@ -133,16 +125,22 @@ pub fn install(asset_archive: AssetArchive) -> Result<String, AssetError> {
     Ok(plugin_name)
 }
 
-pub fn uninstall(asset: &AssetInfo) -> Result<(), AssetError> {
-    if !asset.is_installed() {
-        return Err(AssetError::NotInstalled(asset.asset_id.clone()));
-    }
-    let install_folder = asset
-        .install_folder
-        .clone()
-        .expect("install_folder is specified, ensured in code before this.");
-    let asset_path = get_install_folder_path(&install_folder);
-    safe_remove_dir(&asset_path)?;
+pub fn get_install_folders_in_project() -> Result<Vec<String>, AssetError> {
+    let addons_path = get_addons_path();
 
-    Ok(())
+    let folders = fs::get_folders_in_directory(addons_path)?;
+    Ok(folders)
+}
+
+pub fn uninstall(asset: &AssetInfo) -> Result<(), AssetError> {
+    let config = Config::get()?;
+
+    match config.get_install_folder(&asset.asset_id) {
+        Some(install_folder) => {
+            let asset_path = get_install_folder_path(&install_folder);
+            safe_remove_dir(&asset_path)?;
+            Ok(())
+        }
+        None => Err(AssetError::NotInstalled(asset.asset_id.clone())),
+    }
 }

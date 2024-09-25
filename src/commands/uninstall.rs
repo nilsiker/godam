@@ -35,7 +35,7 @@ pub async fn run(id: &str) -> Result<(), UninstallError> {
 fn uninstall_single(id: &str, config: &mut Config, progress: &MultiProgress) {
     let pb = progress.add(ProgressBar::new_spinner().with_style(progress_style()));
 
-    let asset = match config.asset(id) {
+    let asset = match config.get_asset(id) {
         Ok(asset) => asset.clone(),
         Err(e) => {
             pb.failed(id, &e.to_string());

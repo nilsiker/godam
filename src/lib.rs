@@ -6,6 +6,7 @@ mod config;
 mod console;
 mod godot;
 mod traits;
+mod fs;
 
 use clap::Parser;
 use commands::*;

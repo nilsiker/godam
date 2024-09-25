@@ -1,10 +1,6 @@
 use thiserror::Error;
 
-use crate::{
-    cache,
-    config::{self, Config},
-    info, warn,
-};
+use crate::{cache, config};
 
 #[derive(Error, Debug)]
 pub enum CleanError {

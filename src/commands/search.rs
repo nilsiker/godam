@@ -1,9 +1,8 @@
-use console::style;
 use thiserror::Error;
 
 use crate::{
     api::{self, AssetSearchResult},
-    godot, info, warn,
+    godot, info,
 };
 #[derive(Error, Debug)]
 pub enum SearchError {

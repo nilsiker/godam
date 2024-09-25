@@ -2,12 +2,14 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{assets::AssetInfo, godot};
-
-pub const ADDONS_RELATIVE_PATH: &str = "./addons";
-const CONFIG_RELATIVE_PATH: &str = "./addons/godam.toml";
-const ADDONS_GITIGNORE_PATH: &str = "./addons/.gitignore";
-const ADDONS_GITIGNORE_CONTENT: &str = "*\n!.gitignore\n!godam.toml\n.godam";
+use crate::{
+    assets::AssetInfo,
+    fs::{
+        path::{get_addons_path, get_config_path, get_gitignore_path},
+        ADDONS_GITIGNORE_CONTENT,
+    },
+    godot,
+};
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -36,10 +38,9 @@ pub struct Config {
 }
 impl Config {
     pub fn get() -> Result<Self, ConfigError> {
-        let toml_path = std::env::current_dir()
-            .map_err(ConfigError::from)?
-            .join(CONFIG_RELATIVE_PATH);
-        let string = std::fs::read_to_string(toml_path).map_err(|_| ConfigError::Uninitialized)?;
+        let config_path = get_config_path();
+        let string =
+            crate::fs::read_string(&config_path).map_err(|_| ConfigError::Uninitialized)?;
         let config = toml::from_str(&string)?;
 
         Ok(config)
@@ -66,11 +67,12 @@ impl Config {
 
         let contents = toml::to_string(&config)?;
 
-        if !std::fs::exists(ADDONS_RELATIVE_PATH)? {
-            std::fs::create_dir(ADDONS_RELATIVE_PATH)?;
+        let addons_path = get_addons_path();
+        if !crate::fs::exists(addons_path)? {
+            crate::fs::safe_create_dir(addons_path)?;
         }
-        std::fs::write(CONFIG_RELATIVE_PATH, contents)?;
-        std::fs::write(ADDONS_GITIGNORE_PATH, ADDONS_GITIGNORE_CONTENT)?;
+        crate::fs::safe_write(get_config_path(), contents)?;
+        crate::fs::safe_write(get_gitignore_path(), ADDONS_GITIGNORE_CONTENT)?;
 
         Ok(())
     }
@@ -96,9 +98,9 @@ impl Config {
     }
 
     pub fn save(&self) -> Result<(), ConfigError> {
-        let toml_path = std::env::current_dir()?.join(CONFIG_RELATIVE_PATH);
+        let config_path = get_config_path();
         let str = toml::to_string_pretty(self)?;
-        Ok(std::fs::write(toml_path, str)?)
+        Ok(crate::fs::safe_write(&config_path, str)?)
     }
 
     pub fn register_install_folder(

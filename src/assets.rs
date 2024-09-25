@@ -1,8 +1,14 @@
-use path::installed_path;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::traits::ReadSeek;
+use crate::{
+    fs::{
+        exists,
+        path::{get_install_folder_path, get_out_path_from_archive_path},
+        safe_remove_dir,
+    },
+    traits::ReadSeek,
+};
 
 #[derive(Error, Debug)]
 pub enum AssetError {
@@ -27,7 +33,7 @@ pub struct AssetInfo {
 impl AssetInfo {
     pub fn is_installed(&self) -> bool {
         if let Some(install_folder) = &self.install_folder {
-            std::fs::exists(path::installed_path(install_folder)).is_ok_and(|exists| exists)
+            exists(&get_install_folder_path(install_folder)).is_ok_and(|exists| exists)
         } else {
             false
         }
@@ -107,21 +113,21 @@ pub fn install(asset_archive: AssetArchive) -> Result<String, AssetError> {
 
     for path in zip_paths_to_extract {
         let mut contents = archive.by_name(&path)?;
-        let Some(out_path) = path::get_out_path_from_archive_path(&path) else {
+        let Some(out_path) = get_out_path_from_archive_path(&path) else {
             continue;
         };
 
         // create parent dir if not exists
         if let Some(parent) = out_path.parent() {
-            if !parent.as_os_str().is_empty() && !std::fs::exists(parent)? {
-                std::fs::create_dir_all(parent)?;
+            if !parent.as_os_str().is_empty() && !crate::fs::exists(parent)? {
+                crate::fs::safe_create_dir(parent)?;
             }
         }
 
         // create file
         if !out_path.exists() && !out_path.to_string_lossy().ends_with("/") {
-            let mut out_file = std::fs::File::create(out_path)?;
-            std::io::copy(&mut contents, &mut out_file)?;
+            let mut out_file = crate::fs::create(&out_path)?;
+            crate::fs::copy(&mut contents, &mut out_file)?;
         }
     }
     Ok(plugin_name)
@@ -135,47 +141,8 @@ pub fn uninstall(asset: &AssetInfo) -> Result<(), AssetError> {
         .install_folder
         .clone()
         .expect("install_folder is specified, ensured in code before this.");
-    let asset_path = installed_path(&install_folder);
-    std::fs::remove_dir_all(asset_path)?;
+    let asset_path = get_install_folder_path(&install_folder);
+    safe_remove_dir(&asset_path)?;
 
     Ok(())
-}
-
-mod path {
-    use std::{path::PathBuf, str::FromStr};
-
-    use crate::config::ADDONS_RELATIVE_PATH;
-
-    pub fn addons_path() -> PathBuf {
-        PathBuf::from_str(ADDONS_RELATIVE_PATH).expect("valid addons relative path")
-    }
-
-    pub fn installed_path(install_folder: &str) -> PathBuf {
-        addons_path().join(install_folder)
-    }
-
-    pub fn get_out_path_from_archive_path(archive_path: &str) -> Option<PathBuf> {
-        archive_path
-            .find("addons/")
-            .map(|start| PathBuf::new().join(&archive_path[start..]))
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-        #[test]
-        fn paths_are_relative() {
-            assert!(addons_path().is_relative());
-            assert!(installed_path("some_asset").is_relative());
-
-            assert!(get_out_path_from_archive_path(
-                "C:/Program/Important_Software/addons/some_addon"
-            )
-            .is_some_and(|path| path.is_relative()));
-            assert!(get_out_path_from_archive_path(
-                "/boot/folder_full_of_essentials/addons/some_addon"
-            )
-            .is_some_and(|path| path.is_relative()));
-        }
-    }
 }

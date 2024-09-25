@@ -4,7 +4,7 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{assets::AssetInfo, warn};
+use crate::assets::AssetInfo;
 
 #[derive(Error, Debug)]
 pub enum ApiError {

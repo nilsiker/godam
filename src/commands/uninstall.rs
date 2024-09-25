@@ -64,7 +64,7 @@ fn uninstall_single(id: &str, config: &mut Config, progress: &MultiProgress) {
 fn uninstall_all(config: &mut Config, progress: &MultiProgress) -> Result<(), UninstallError> {
     for asset in config.assets.clone() {
         let id = asset.asset_id.clone();
-        uninstall_single(&id, config, &progress);
+        uninstall_single(&id, config, progress);
     }
     Ok(())
 }

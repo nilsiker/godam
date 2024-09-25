@@ -88,11 +88,11 @@ async fn install_asset(
     config: Arc<Mutex<Config>>,
 ) -> Result<(), InstallError> {
     progress.running("Fetching", &asset.title);
-    let archive: AssetArchive = match cache::get(&asset) {
+    let archive: AssetArchive = match cache::get(asset) {
         Ok(hit) => hit,
 
         Err(_) => {
-            let blob = api::download(&asset).await?;
+            let blob = api::download(asset).await?;
             cache::write_to_cache(&asset.asset_id, &blob)?;
             let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
             AssetArchive {

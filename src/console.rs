@@ -11,14 +11,14 @@ pub fn progress_style() -> ProgressStyle {
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)*) => {{
-        println!("  {}", console::style(format_args!($($arg)*)).color256(crate::console::BLUE))
+        println!("  {}", console::style(format_args!($($arg)*)).color256($crate::console::BLUE))
     }};
 }
 
 #[macro_export]
 macro_rules! warn {
     ($($arg:tt)*) => {{
-        println!("  {}", console::style(format_args!($($arg)*)).color256(crate::console::ORANGE))
+        println!("  {}", console::style(format_args!($($arg)*)).color256($crate::console::ORANGE))
     }};
 }
 

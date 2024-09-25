@@ -40,7 +40,7 @@ impl Config {
     pub fn get() -> Result<Self, ConfigError> {
         let config_path = get_config_path();
         let string =
-            crate::fs::read_string(&config_path).map_err(|_| ConfigError::Uninitialized)?;
+            crate::fs::read_string(config_path).map_err(|_| ConfigError::Uninitialized)?;
         let config = toml::from_str(&string)?;
 
         Ok(config)
@@ -100,7 +100,7 @@ impl Config {
     pub fn save(&self) -> Result<(), ConfigError> {
         let config_path = get_config_path();
         let str = toml::to_string_pretty(self)?;
-        Ok(crate::fs::safe_write(&config_path, str)?)
+        Ok(crate::fs::safe_write(config_path, str)?)
     }
 
     pub fn register_install_folder(

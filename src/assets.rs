@@ -137,7 +137,7 @@ pub fn uninstall(asset: &AssetInfo) -> Result<(), AssetError> {
 
     match config.get_install_folder(&asset.asset_id) {
         Some(install_folder) => {
-            let asset_path = get_install_folder_path(&install_folder);
+            let asset_path = get_install_folder_path(install_folder);
             safe_remove_dir(&asset_path)?;
             Ok(())
         }

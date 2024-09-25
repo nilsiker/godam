@@ -56,25 +56,6 @@ impl Config {
             .ok_or(ConfigError::AssetNotFound(id.to_string()))
     }
 
-    fn asset_mut(&mut self, id: &str) -> Option<&mut AssetInfo> {
-        self.assets.iter_mut().find(|a| a.asset_id == id)
-    }
-
-    pub fn get_id_from_install_folder(&self, install_folder: &str) -> Option<&String> {
-        match self
-            .install_folders
-            .iter()
-            .find(|entry| entry.1 == install_folder)
-        {
-            Some(entry) => Some(&entry.0),
-            None => None,
-        }
-    }
-
-    pub fn get_install_folders(&self) -> Vec<&String> {
-        self.install_folders.values().collect()
-    }
-
     pub fn get_install_folder(&self, asset_id: &str) -> Option<&String> {
         self.install_folders.get(asset_id)
     }

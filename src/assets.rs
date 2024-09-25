@@ -97,8 +97,8 @@ impl AssetArchive {
     }
 }
 
-pub fn install(asset_archive: AssetArchive) -> Result<String, AssetError> {
-    let (plugin_name, zip_paths_to_extract) =
+pub fn install(asset_archive: AssetArchive) -> Result<(), AssetError> {
+    let (_, zip_paths_to_extract) =
         asset_archive.get_plugin_name_and_files_to_extract()?;
 
     let mut archive = asset_archive.archive;
@@ -122,7 +122,7 @@ pub fn install(asset_archive: AssetArchive) -> Result<String, AssetError> {
             crate::fs::copy(&mut contents, &mut out_file)?;
         }
     }
-    Ok(plugin_name)
+    Ok(())
 }
 
 pub fn get_install_folders_in_project() -> Result<Vec<String>, AssetError> {

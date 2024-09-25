@@ -28,7 +28,7 @@ pub enum ConfigError {
     Serialize(#[from] toml::ser::Error),
 
     #[error("Godot error: {0}")]
-    GodotError(#[from] godot::GodotError),
+    GodotError(#[from] godot::error::GodotProjectError),
     #[error("Project is not initialized, try 'godam init'.")]
     Uninitialized,
 }
@@ -70,7 +70,7 @@ impl Config {
     }
 
     pub fn init() -> Result<(), ConfigError> {
-        let version = godot::get_project_version()?;
+        let version = godot::project::get_version()?;
 
         let config = Config {
             assets: vec![],

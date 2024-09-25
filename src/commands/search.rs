@@ -1,26 +1,26 @@
 use thiserror::Error;
 
 use crate::{
-    api::{self, AssetSearchResult},
-    godot, info,
+    godot::{
+        asset_library::{get_assets_by_name, AssetSearchResult},
+        error::{AssetLibraryError, GodotProjectError},
+        project::get_version,
+    },
+    info,
 };
 #[derive(Error, Debug)]
 pub enum SearchError {
     #[error(transparent)]
-    Godot(#[from] godot::GodotError),
+    Godot(#[from] GodotProjectError),
     #[error(transparent)]
-    Request(#[from] api::ApiError),
+    Request(#[from] AssetLibraryError),
 }
 
 pub async fn run(asset_name: &str) -> Result<(), SearchError> {
-    let version = godot::get_project_version()?;
-    let assets = api::get_assets_by_name(asset_name, &version).await?;
+    let version = get_version()?;
+    let assets = get_assets_by_name(asset_name, &version).await?;
 
-    for AssetSearchResult {
-        title,
-        asset_id,
-    } in &assets
-    {
+    for AssetSearchResult { title, asset_id } in &assets {
         info!("{asset_id}: {title}");
     }
 

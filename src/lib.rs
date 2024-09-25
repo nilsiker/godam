@@ -1,4 +1,3 @@
-mod api;
 mod assets;
 mod cache;
 mod commands;

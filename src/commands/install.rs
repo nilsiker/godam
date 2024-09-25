@@ -9,11 +9,11 @@ use tokio::task::JoinSet;
 use zip::ZipArchive;
 
 use crate::{
-    api,
     assets::{self, get_install_folders_in_project, AssetArchive, AssetInfo},
     cache,
     config::{self, Config},
     console::{progress_style, GodamProgressMessage},
+    godot::{self, asset_library},
     traits::ReadSeek,
     warn,
 };
@@ -24,7 +24,7 @@ pub enum InstallError {
     Config(#[from] config::ConfigError),
 
     #[error(transparent)]
-    Request(#[from] api::ApiError),
+    Request(#[from] godot::error::AssetLibraryError),
 
     #[error("Cache error: {0}")]
     Cache(#[from] std::io::Error),
@@ -44,7 +44,7 @@ pub async fn run(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
     if let Some(ids) = ids {
         for id in ids {
             if config.get_asset(id).is_err() {
-                match api::get_asset_by_id(id).await {
+                match asset_library::get_asset_by_id(id).await {
                     Ok(asset) => config.add_asset(asset)?,
                     Err(e) => warn!("{e}"),
                 }
@@ -102,7 +102,7 @@ async fn install_asset(
         Ok(hit) => hit,
 
         Err(_) => {
-            let blob = api::download(asset).await?;
+            let blob = asset_library::download(asset).await?;
             cache::write_to_cache(&asset.asset_id, &blob)?;
             let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
             AssetArchive {
@@ -136,7 +136,7 @@ async fn install_asset(
     }
 
     progress.running("Unpacking", &asset.title);
-    let folder = match assets::install(archive).map_err(InstallError::from) {
+    match assets::install(archive).map_err(InstallError::from) {
         Ok(folder) => folder,
         Err(e) => {
             progress.failed(&asset.title, &e.to_string());

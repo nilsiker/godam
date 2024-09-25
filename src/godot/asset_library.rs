@@ -2,17 +2,11 @@
 
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 use crate::assets::AssetInfo;
 
-#[derive(Error, Debug)]
-pub enum ApiError {
-    #[error("API request failed: {0}")]
-    Unhandled(#[from] reqwest::Error),
-    #[error("Expected a valid ID (integer), found '{0}'")]
-    InvalidId(String),
-}
+use super::error::AssetLibraryError;
+
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct AssetResponse {
@@ -37,7 +31,7 @@ pub struct AssetBlob {
 pub async fn get_assets_by_name(
     name: &str,
     version: &Version,
-) -> Result<Vec<AssetSearchResult>, ApiError> {
+) -> Result<Vec<AssetSearchResult>, AssetLibraryError> {
     let version_str = version.to_string();
     let request_url = format!(
         "https://godotengine.org/asset-library/api/asset?filter={name}&godot_version={version_str}"
@@ -49,10 +43,10 @@ pub async fn get_assets_by_name(
     Ok(asset_search_response.result)
 }
 
-pub async fn get_asset_by_id(id: &str) -> Result<AssetInfo, ApiError> {
+pub async fn get_asset_by_id(id: &str) -> Result<AssetInfo, AssetLibraryError> {
     // TODO should validate with param type for ID
     if id.parse::<usize>().is_err() {
-        return Err(ApiError::InvalidId(id.to_string()));
+        return Err(AssetLibraryError::InvalidId(id.to_string()));
     }
 
     let request_url = format!("https://godotengine.org/asset-library/api/asset/{id}");
@@ -63,7 +57,7 @@ pub async fn get_asset_by_id(id: &str) -> Result<AssetInfo, ApiError> {
     Ok(asset)
 }
 
-pub async fn download(asset: &AssetInfo) -> Result<AssetBlob, ApiError> {
+pub async fn download(asset: &AssetInfo) -> Result<AssetBlob, AssetLibraryError> {
     let resp = reqwest::get(&asset.download_url).await?;
 
     let bytes = resp.bytes().await?;

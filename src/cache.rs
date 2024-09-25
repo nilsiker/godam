@@ -1,11 +1,10 @@
-use crate::fs::{
+use crate::{fs::{
     exists, open,
     path::{get_cache_path, get_cached_zip_path},
     safe_create_dir, safe_remove_file, safe_write,
-};
+}, godot::asset_library::AssetBlob};
 
 use crate::{
-    api::AssetBlob,
     assets::{AssetArchive, AssetInfo},
     info,
     traits::ReadSeek,

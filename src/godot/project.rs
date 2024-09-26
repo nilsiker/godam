@@ -2,19 +2,21 @@ use semver::Version;
 use std::str::FromStr;
 use thiserror::Error;
 
+use crate::fs::path::get_project_file_path;
+
 const GODOT_PROJECT_LINE_START: &str = "config/features=PackedStringArray(";
 
 #[derive(Error, Debug)]
-pub enum GodotError {
+pub enum GodotProjectError {
     #[error("Could not find project.godot file in working directory.")]
     ProjectNotFound,
     #[error("Could not parse version from project.godot file.")]
     VersionParse(#[from] semver::Error),
 }
 
-pub fn get_project_version() -> Result<Version, GodotError> {
-    let file =
-        std::fs::read_to_string("./project.godot").map_err(|_| GodotError::ProjectNotFound)?;
+pub fn get_version() -> Result<Version, GodotProjectError> {
+    let file = crate::fs::read_string(get_project_file_path())
+        .map_err(|_| GodotProjectError::ProjectNotFound)?;
     let string = file
         .lines()
         .find(|line| line.starts_with(GODOT_PROJECT_LINE_START));
@@ -33,6 +35,6 @@ pub fn get_project_version() -> Result<Version, GodotError> {
             let version = Version::from_str(&version_str)?;
             Ok(version)
         }
-        None => Err(GodotError::ProjectNotFound),
+        None => Err(GodotProjectError::ProjectNotFound),
     }
 }

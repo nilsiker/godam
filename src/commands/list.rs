@@ -4,7 +4,7 @@ use crate::{
     info,
 };
 
-pub fn run() -> Result<(), ConfigError> {
+pub fn exec() -> Result<(), ConfigError> {
     let config = Config::get()?;
 
     let longest_id_length = config

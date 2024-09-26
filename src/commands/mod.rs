@@ -8,7 +8,7 @@ pub mod uninstall;
 use clap::Subcommand;
 
 #[derive(Subcommand)]
-pub enum Commands {
+pub enum Command {
     #[command()]
     /// Initializes your Godot project to use godam as your addon manager
     Init,
@@ -31,7 +31,7 @@ pub enum Commands {
     Uninstall {
         /// The name of the asset you want to uninstall
         #[arg(index = 1)]
-        name: String,
+        name: Option<String>,
     },
     /// Lists all assets being managed by Godam
     #[command(alias = "ls", alias = "l")]

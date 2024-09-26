@@ -1,9 +1,8 @@
-mod api;
 mod assets;
-mod cache;
 mod commands;
 mod config;
 mod console;
+mod fs;
 mod godot;
 mod traits;
 
@@ -18,17 +17,17 @@ use commands::*;
 /// A minimal addon manager for Godot.
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Command,
 }
 
-pub async fn run(command: &Commands) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run(command: &Command) -> Result<(), Box<dyn std::error::Error>> {
     match command {
-        Commands::Init => init::run()?,
-        Commands::Search { name } => search::run(name).await?,
-        Commands::Install { name } => install::run(name).await?,
-        Commands::Uninstall { name } => uninstall::run(name).await?,
-        Commands::List => list::run()?,
-        Commands::Clean => clean::run()?,
+        Command::Init => init::exec()?,
+        Command::Search { name } => search::exec(name).await?,
+        Command::Install { name } => install::exec(name).await?,
+        Command::Uninstall { name } => uninstall::exec(name)?,
+        Command::List => list::exec()?,
+        Command::Clean => clean::exec()?,
     };
 
     Ok(())

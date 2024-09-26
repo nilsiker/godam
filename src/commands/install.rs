@@ -9,11 +9,14 @@ use tokio::task::JoinSet;
 use zip::ZipArchive;
 
 use crate::{
-    api,
-    assets::{self, AssetArchive, AssetInfo},
-    cache,
+    assets::{
+        self,
+        cache::{self, AssetArchive},
+        get_install_folders_in_project, AssetInfo,
+    },
     config::{self, Config},
     console::{progress_style, GodamProgressMessage},
+    godot::asset_library::{self, AssetLibraryError},
     traits::ReadSeek,
     warn,
 };
@@ -24,7 +27,7 @@ pub enum InstallError {
     Config(#[from] config::ConfigError),
 
     #[error(transparent)]
-    Request(#[from] api::ApiError),
+    Request(#[from] AssetLibraryError),
 
     #[error("Cache error: {0}")]
     Cache(#[from] std::io::Error),
@@ -34,15 +37,18 @@ pub enum InstallError {
 
     #[error(transparent)]
     Asset(#[from] assets::AssetError),
+
+    #[error("An error occured when locking resources for a thread.")]
+    Mutex,
 }
 
-pub async fn run(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
+pub async fn exec(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
     let mut config = Config::get()?;
 
     if let Some(ids) = ids {
         for id in ids {
-            if config.asset(id).is_err() {
-                match api::get_asset_by_id(id).await {
+            if config.get_asset(id).is_err() {
+                match asset_library::get_asset_by_id(id).await {
                     Ok(asset) => config.add_asset(asset)?,
                     Err(e) => warn!("{e}"),
                 }
@@ -53,13 +59,21 @@ pub async fn run(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
     let progress = MultiProgress::new();
 
     let assets = Config::get()?.assets;
+    let install_folders = get_install_folders_in_project()?;
 
-    let not_installed_assets: Vec<AssetInfo> =
-        assets.into_iter().filter(|a| !a.is_installed()).collect();
-
-    if not_installed_assets.is_empty() {
-        return Ok(());
-    }
+    let not_installed_assets: Vec<AssetInfo> = assets
+        .into_iter()
+        .filter_map(|asset| {
+            let Some(folder) = config.get_install_folder(&asset.asset_id) else {
+                return Some(asset);
+            };
+            if install_folders.contains(folder) {
+                None
+            } else {
+                Some(asset)
+            }
+        })
+        .collect();
 
     let config = Arc::new(Mutex::new(config));
 
@@ -71,8 +85,8 @@ pub async fn run(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
         tasks.spawn(async move {
             pb.enable_steady_tick(std::time::Duration::from_millis(100));
             match install_asset(&asset, &pb, config).await {
-                Ok(()) => pb.finished("Installed", &asset.title),
-                Err(e) => pb.failed(&asset.title, &e.to_string()),
+                Ok(()) => pb.complete("Installed", &asset.title),
+                Err(e) => pb.fail(&asset.title, &e.to_string()),
             };
         });
     }
@@ -87,12 +101,12 @@ async fn install_asset(
     progress: &ProgressBar,
     config: Arc<Mutex<Config>>,
 ) -> Result<(), InstallError> {
-    progress.running("Fetching", &asset.title);
-    let archive: AssetArchive = match cache::get(&asset) {
+    progress.start("Fetching", &asset.title);
+    let archive: AssetArchive = match cache::get(asset) {
         Ok(hit) => hit,
 
         Err(_) => {
-            let blob = api::download(&asset).await?;
+            let blob = asset_library::download(asset).await?;
             cache::write_to_cache(&asset.asset_id, &blob)?;
             let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
             AssetArchive {
@@ -102,24 +116,39 @@ async fn install_asset(
         }
     };
 
-    progress.running("Unpacking", &asset.title);
-    let folder = match assets::install(archive).map_err(InstallError::from) {
+    // register install folder before installing
+    match config.lock() {
+        Ok(mut config) => {
+            let install_folder_name = match archive.get_plugin_info() {
+                Some((name, _)) => name,
+                None => {
+                    return Err(InstallError::Asset(
+                        assets::AssetError::InvalidAssetStructure(
+                            "Could not find plugin name".to_string(),
+                        ),
+                    ))
+                }
+            };
+            if let Err(e) = config.set_install_folder(&asset.asset_id, install_folder_name) {
+                progress.fail(&asset.title, &e.to_string());
+            }
+        }
+        Err(e) => {
+            progress.fail(&asset.title, &e.to_string());
+            return Err(InstallError::Mutex);
+        }
+    }
+
+    progress.start("Unpacking", &asset.title);
+    match assets::install(archive).map_err(InstallError::from) {
         Ok(folder) => folder,
         Err(e) => {
-            progress.failed(&asset.title, &e.to_string());
+            progress.fail(&asset.title, &e.to_string());
             return Err(e);
         }
     };
 
-    progress.running("Updating", &asset.title);
-
-    match config.lock() {
-        Ok(mut config) => match config.register_install_folder(&asset.asset_id, folder) {
-            Ok(()) => progress.finished("Installed", &asset.title),
-            Err(e) => progress.failed(&asset.title, &e.to_string()),
-        },
-        Err(e) => progress.failed(&asset.title, &e.to_string()),
-    }
+    progress.complete("Installed", &asset.title);
 
     Ok(())
 }

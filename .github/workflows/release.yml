@@ -39,7 +39,7 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: godam-${{ github.ref_name }}-${{ matrix.target }}-${{ github.sha }}
           path: target/${{ matrix.target }}/release/godam${{ matrix.extension }}
@@ -51,9 +51,7 @@ jobs:
 
     steps:
       - name: Download binaries from build jobs
-        uses: actions/download-artifact@v3
-        with:
-          name: godam-${{ github.ref_name }}-${{ matrix.target }}-${{ github.sha }}
+        uses: actions/download-artifact@v4
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1

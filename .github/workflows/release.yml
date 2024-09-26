@@ -1,0 +1,71 @@
+
+name: Build and Release Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'  # Run this workflow only when a new tag is pushed (e.g., v1.0, v1.1)
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            extension: ""
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            extension: ""
+            target: x86_64-apple-darwin
+          - os: windows-latest
+            extension: ".exe"
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: godam-${{ matrix.target }}-${{ github.sha }}
+          path: target/${{ matrix.target }}/release/godam${{ matrix.extension }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download binaries from build jobs
+        uses: actions/download-artifact@v3
+        with:
+          name: godam-${{ matrix.target }}-${{ github.sha }}
+          path: ./binaries
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: |
+            binaries/godam-x86_64-unknown-linux-gnu
+            binaries/godam-x86_64-apple-darwin
+            binaries/godam-x86_64-pc-windows-msvc.exe
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            Release of version ${{ github.ref_name }}.
+            Contains binaries for Linux, macOS, and Windows.

@@ -2,9 +2,8 @@ use thiserror::Error;
 
 use crate::{
     godot::{
-        asset_library::{get_assets_by_name, AssetSearchResult},
-        error::{AssetLibraryError, GodotProjectError},
-        project::get_version,
+        asset_library::{get_assets_by_name, AssetLibraryError, AssetSearchResult},
+        project::{get_version, GodotProjectError},
     },
     info,
 };

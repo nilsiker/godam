@@ -22,14 +22,22 @@ macro_rules! warn {
     }};
 }
 
+#[macro_export]
+macro_rules! prompt_char {
+    ($($arg:tt)*) => {{
+        println!("  {}", console::style(format_args!($($arg)*)).bold().color256($crate::console::ORANGE));
+        console::Term::stdout().read_char()?
+    }};
+}
+
 pub trait GodamProgressMessage {
-    fn running(&self, action: &str, msg: &str);
-    fn finished(&self, action: &str, msg: &str);
-    fn failed(&self, msg: &str, reason: &str);
+    fn start(&self, action: &str, msg: &str);
+    fn complete(&self, action: &str, msg: &str);
+    fn fail(&self, msg: &str, reason: &str);
 }
 
 impl GodamProgressMessage for ProgressBar {
-    fn running(&self, action: &str, msg: &str) {
+    fn start(&self, action: &str, msg: &str) {
         self.set_message(format!(
             "{} {}",
             style(action).color256(BLUE).dim(),
@@ -37,7 +45,7 @@ impl GodamProgressMessage for ProgressBar {
         ));
     }
 
-    fn finished(&self, action: &str, msg: &str) {
+    fn complete(&self, action: &str, msg: &str) {
         self.finish_with_message(format!(
             "{} {}",
             style(action).color256(BLUE),
@@ -45,7 +53,7 @@ impl GodamProgressMessage for ProgressBar {
         ));
     }
 
-    fn failed(&self, msg: &str, reason: &str) {
+    fn fail(&self, msg: &str, reason: &str) {
         self.abandon_with_message(format!(
             "{}: {} ({reason})",
             style("Failed").color256(ORANGE),

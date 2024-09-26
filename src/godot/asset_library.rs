@@ -2,10 +2,17 @@
 
 use semver::Version;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::assets::AssetInfo;
 
-use super::error::AssetLibraryError;
+#[derive(Error, Debug)]
+pub enum AssetLibraryError {
+    #[error("API request failed: {0}")]
+    Unhandled(#[from] reqwest::Error),
+    #[error("Expected a valid ID (integer), found '{0}'")]
+    InvalidId(String),
+}
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct AssetResponse {

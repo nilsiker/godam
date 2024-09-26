@@ -1,12 +1,24 @@
 use indicatif::{MultiProgress, ProgressBar};
+use thiserror::Error;
 
 use crate::{
-    assets,
-    config::Config,
+    assets::{self, AssetError},
+    config::{Config, ConfigError},
     console::{progress_style, GodamProgressMessage},
-    error::UninstallError,
-    warn,
+    prompt_char,
 };
+
+#[derive(Error, Debug)]
+pub enum UninstallError {
+    #[error(transparent)]
+    Config(#[from] ConfigError),
+
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error(transparent)]
+    AssetError(#[from] AssetError),
+}
 
 pub fn exec(id: &Option<String>) -> Result<(), UninstallError> {
     let mut config = Config::get()?;
@@ -16,8 +28,7 @@ pub fn exec(id: &Option<String>) -> Result<(), UninstallError> {
     match id {
         Some(some_id) => uninstall_single(some_id, &mut config, &progress),
         None => {
-            warn!("Do you want to uninstall all addons? ('y' to confirm)");
-            let confirm = console::Term::stdout().read_char()?;
+            let confirm = prompt_char!("Do you want to uninstall all addons? ('y' to confirm)");
             if confirm == 'y' {
                 uninstall_all(&mut config, &progress)?;
             }
@@ -32,27 +43,27 @@ fn uninstall_single(id: &str, config: &mut Config, progress: &MultiProgress) {
     let asset = match config.get_asset(id) {
         Ok(a) => a.clone(),
         Err(e) => {
-            pb.failed(id, &e.to_string());
+            pb.fail(id, &e.to_string());
             return;
         }
     };
 
-    pb.running("Uninstalling", &asset.title);
+    pb.start("Uninstalling", &asset.title);
     match assets::uninstall(&asset) {
         Ok(()) => (),
         Err(e) => {
-            pb.failed(id, &e.to_string());
+            pb.fail(id, &e.to_string());
         }
     }
-    pb.running("Removing", &asset.title);
+    pb.start("Removing", &asset.title);
     match config.remove_asset(id) {
         Ok(()) => (),
         Err(e) => {
-            pb.failed(&asset.title, &e.to_string());
+            pb.fail(&asset.title, &e.to_string());
             return;
         }
     }
-    pb.finished("Removed", &asset.title);
+    pb.complete("Removed", &asset.title);
 }
 
 fn uninstall_all(config: &mut Config, progress: &MultiProgress) -> Result<(), UninstallError> {

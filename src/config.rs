@@ -10,7 +10,7 @@ use crate::{
         path::{get_addons_path, get_config_path, get_gitignore_path},
         ADDONS_GITIGNORE_CONTENT,
     },
-    godot,
+    godot::{self, project::GodotProjectError},
 };
 
 #[derive(Error, Debug)]
@@ -28,7 +28,7 @@ pub enum ConfigError {
     Serialize(#[from] toml::ser::Error),
 
     #[error("Godot error: {0}")]
-    GodotError(#[from] godot::error::GodotProjectError),
+    GodotError(#[from] GodotProjectError),
     #[error("Project is not initialized, try 'godam init'.")]
     Uninitialized,
 }

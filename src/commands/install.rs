@@ -16,7 +16,7 @@ use crate::{
     },
     config::{self, Config},
     console::{progress_style, GodamProgressMessage},
-    godot::{self, asset_library},
+    godot::asset_library::{self, AssetLibraryError},
     traits::ReadSeek,
     warn,
 };
@@ -27,7 +27,7 @@ pub enum InstallError {
     Config(#[from] config::ConfigError),
 
     #[error(transparent)]
-    Request(#[from] godot::error::AssetLibraryError),
+    Request(#[from] AssetLibraryError),
 
     #[error("Cache error: {0}")]
     Cache(#[from] std::io::Error),
@@ -36,7 +36,8 @@ pub enum InstallError {
     Zip(#[from] zip::result::ZipError),
 
     #[error(transparent)]
-    Asset(#[from] assets::error::AssetError),
+    Asset(#[from] assets::AssetError),
+
     #[error("An error occured when locking resources for a thread.")]
     Mutex,
 }
@@ -84,8 +85,8 @@ pub async fn exec(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
         tasks.spawn(async move {
             pb.enable_steady_tick(std::time::Duration::from_millis(100));
             match install_asset(&asset, &pb, config).await {
-                Ok(()) => pb.finished("Installed", &asset.title),
-                Err(e) => pb.failed(&asset.title, &e.to_string()),
+                Ok(()) => pb.complete("Installed", &asset.title),
+                Err(e) => pb.fail(&asset.title, &e.to_string()),
             };
         });
     }
@@ -100,7 +101,7 @@ async fn install_asset(
     progress: &ProgressBar,
     config: Arc<Mutex<Config>>,
 ) -> Result<(), InstallError> {
-    progress.running("Fetching", &asset.title);
+    progress.start("Fetching", &asset.title);
     let archive: AssetArchive = match cache::get(asset) {
         Ok(hit) => hit,
 
@@ -122,32 +123,32 @@ async fn install_asset(
                 Some((name, _)) => name,
                 None => {
                     return Err(InstallError::Asset(
-                        assets::error::AssetError::InvalidAssetStructure(
+                        assets::AssetError::InvalidAssetStructure(
                             "Could not find plugin name".to_string(),
                         ),
                     ))
                 }
             };
             if let Err(e) = config.set_install_folder(&asset.asset_id, install_folder_name) {
-                progress.failed(&asset.title, &e.to_string());
+                progress.fail(&asset.title, &e.to_string());
             }
         }
         Err(e) => {
-            progress.failed(&asset.title, &e.to_string());
+            progress.fail(&asset.title, &e.to_string());
             return Err(InstallError::Mutex);
         }
     }
 
-    progress.running("Unpacking", &asset.title);
+    progress.start("Unpacking", &asset.title);
     match assets::install(archive).map_err(InstallError::from) {
         Ok(folder) => folder,
         Err(e) => {
-            progress.failed(&asset.title, &e.to_string());
+            progress.fail(&asset.title, &e.to_string());
             return Err(e);
         }
     };
 
-    progress.finished("Installed", &asset.title);
+    progress.complete("Installed", &asset.title);
 
     Ok(())
 }

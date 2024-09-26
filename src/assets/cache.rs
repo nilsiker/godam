@@ -11,7 +11,7 @@ use crate::{assets::AssetInfo, info, traits::ReadSeek, warn};
 
 use zip::ZipArchive;
 
-use super::{consts, error::AssetError};
+use super::{consts, AssetError};
 
 pub struct AssetArchive {
     pub id: String,

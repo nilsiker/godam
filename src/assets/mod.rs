@@ -1,19 +1,32 @@
 pub mod cache;
 pub mod consts;
-pub mod error;
 
 use cache::AssetArchive;
-use error::AssetError;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::{
-    config::Config,
+    config::{Config, ConfigError},
     fs::{
         self,
         path::{get_addons_path, get_install_folder_path, get_out_path_from_archive_path},
         safe_remove_dir,
     },
 };
+
+#[derive(Error, Debug)]
+pub enum AssetError {
+    #[error("Invalid asset structure. No addons folder was identified for asset with id {0}")]
+    InvalidAssetStructure(String),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Zip(#[from] zip::result::ZipError),
+    #[error("Asset {0} is not installed")]
+    NotInstalled(String),
+    #[error(transparent)]
+    Config(#[from] ConfigError),
+}
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct AssetInfo {

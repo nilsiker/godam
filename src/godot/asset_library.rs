@@ -1,5 +1,6 @@
 //! Handles all calls to the web
 
+use reqwest::Url;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -12,6 +13,8 @@ pub enum AssetLibraryError {
     Unhandled(#[from] reqwest::Error),
     #[error("Expected a valid ID (integer), found '{0}'")]
     InvalidId(String),
+    #[error("Could not parse url")]
+    ParseUrl,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -39,10 +42,14 @@ pub async fn get_assets_by_name(
     version: &Version,
 ) -> Result<Vec<AssetSearchResult>, AssetLibraryError> {
     let version_str = version.to_string();
-    let request_url = format!(
-        "https://godotengine.org/asset-library/api/asset?filter={name}&godot_version={version_str}"
-    );
-    let response = reqwest::get(&request_url).await?;
+
+    let url = Url::parse_with_params(
+        "https://godotengine.org/asset-library/api/asset",
+        &[("filter", name), ("godot_version", &version_str)],
+    )
+    .map_err(|_| AssetLibraryError::ParseUrl)?;
+
+    let response = reqwest::get(url).await?;
 
     let asset_search_response = response.json::<AssetSearchResponse>().await?;
 

@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
@@ -50,9 +50,9 @@ jobs:
 
     steps:
       - name: Download binaries from build jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: godam-${{ matrix.target }}-${{ github.sha }}
+          name: godam-${{ github.ref_name }}-${{ matrix.target }}-${{ github.sha }}
           path: ./binaries
 
       - name: Create GitHub Release
@@ -66,5 +66,5 @@ jobs:
           tag: ${{ github.ref }}
           name: Release ${{ github.ref_name }}
           body: |
-            Release of version ${{ github.ref }}.
+            Release of version ${{ github.ref_name }}.
             Contains binaries for Linux, macOS, and Windows.

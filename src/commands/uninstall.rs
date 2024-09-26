@@ -5,6 +5,7 @@ use crate::{
     config::Config,
     console::{progress_style, GodamProgressMessage},
     error::UninstallError,
+    warn,
 };
 
 pub fn exec(id: &Option<String>) -> Result<(), UninstallError> {
@@ -14,7 +15,13 @@ pub fn exec(id: &Option<String>) -> Result<(), UninstallError> {
 
     match id {
         Some(some_id) => uninstall_single(some_id, &mut config, &progress),
-        None => uninstall_all(&mut config, &progress)?,
+        None => {
+            warn!("Do you want to uninstall all addons? ('y' to confirm)");
+            let confirm = console::Term::stdout().read_char()?;
+            if confirm == 'y' {
+                uninstall_all(&mut config, &progress)?;
+            }
+        }
     }
     Ok(())
 }

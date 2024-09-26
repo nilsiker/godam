@@ -41,7 +41,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: godam-${{ matrix.target }}-${{ github.sha }}
+          name: godam-${{ github.ref_name }}-${{ matrix.target }}-${{ github.sha }}
           path: target/${{ matrix.target }}/release/godam${{ matrix.extension }}
 
   release:
@@ -53,16 +53,15 @@ jobs:
       - name: Download binaries from build jobs
         uses: actions/download-artifact@v3
         with:
-          name: godam-${{ matrix.target }}-${{ github.sha }}
-          path: ./binaries
+          name: godam-${{ github.ref_name }}-${{ matrix.target }}-${{ github.sha }}
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
           artifacts: |
-            binaries/godam-x86_64-unknown-linux-gnu
-            binaries/godam-x86_64-apple-darwin
-            binaries/godam-x86_64-pc-windows-msvc.exe
+            godam-${{ github.ref_name }}-x86_64-unknown-linux-gnu
+            godam-${{ github.ref_name }}-x86_64-apple-darwin
+            godam-${{ github.ref_name }}-x86_64-pc-windows-msvc.exe
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref }}
           name: Release ${{ github.ref_name }}

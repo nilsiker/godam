@@ -9,8 +9,11 @@ use tokio::task::JoinSet;
 use zip::ZipArchive;
 
 use crate::{
-    assets::{self, get_install_folders_in_project, AssetArchive, AssetInfo},
-    cache,
+    assets::{
+        self,
+        cache::{self, AssetArchive},
+        get_install_folders_in_project, AssetInfo,
+    },
     config::{self, Config},
     console::{progress_style, GodamProgressMessage},
     godot::{self, asset_library},
@@ -33,12 +36,12 @@ pub enum InstallError {
     Zip(#[from] zip::result::ZipError),
 
     #[error(transparent)]
-    Asset(#[from] assets::AssetError),
+    Asset(#[from] assets::error::AssetError),
     #[error("An error occured when locking resources for a thread.")]
     Mutex,
 }
 
-pub async fn run(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
+pub async fn exec(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
     let mut config = Config::get()?;
 
     if let Some(ids) = ids {
@@ -119,7 +122,7 @@ async fn install_asset(
                 Some((name, _)) => name,
                 None => {
                     return Err(InstallError::Asset(
-                        assets::AssetError::InvalidAssetStructure(
+                        assets::error::AssetError::InvalidAssetStructure(
                             "Could not find plugin name".to_string(),
                         ),
                     ))

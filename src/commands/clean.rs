@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::{cache, config};
+use crate::{assets::cache, config};
 
 #[derive(Error, Debug)]
 pub enum CleanError {
@@ -10,7 +10,7 @@ pub enum CleanError {
     Io(#[from] std::io::Error),
 }
 
-pub fn run() -> Result<(), CleanError> {
+pub fn exec() -> Result<(), CleanError> {
     cache::clear()?;
     Ok(())
 }

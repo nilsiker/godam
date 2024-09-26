@@ -16,7 +16,7 @@ pub enum SearchError {
     Request(#[from] AssetLibraryError),
 }
 
-pub async fn run(asset_name: &str) -> Result<(), SearchError> {
+pub async fn exec(asset_name: &str) -> Result<(), SearchError> {
     let version = get_version()?;
     let assets = get_assets_by_name(asset_name, &version).await?;
 

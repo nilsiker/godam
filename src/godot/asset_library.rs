@@ -7,7 +7,6 @@ use crate::assets::AssetInfo;
 
 use super::error::AssetLibraryError;
 
-
 #[derive(Deserialize, Serialize, Clone)]
 pub struct AssetResponse {
     result: Vec<AssetInfo>,

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -37,7 +37,7 @@ pub enum ConfigError {
 pub struct Config {
     pub godot_version: Version,
     pub assets: Vec<AssetInfo>,
-    pub install_folders: HashMap<String, String>,
+    pub install_folders: BTreeMap<String, String>,
 }
 
 impl Config {
@@ -75,7 +75,7 @@ impl Config {
         let config = Config {
             assets: vec![],
             godot_version: version,
-            install_folders: HashMap::new(),
+            install_folders: BTreeMap::new(),
         };
 
         let contents = toml::to_string(&config)?;
@@ -95,9 +95,10 @@ impl Config {
             println!("Asset is already registered. Skipping...");
         } else {
             self.assets.push(asset);
-            self.save()?
+            self.assets.sort_by(|a, b| a.asset_id.cmp(&b.asset_id));
         }
-        Ok(())
+
+        self.save()
     }
 
     pub fn remove_asset(&mut self, asset_id: &str) -> Result<(), ConfigError> {

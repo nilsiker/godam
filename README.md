@@ -43,28 +43,29 @@ This process is repeated for every asset listed in the `godam.toml` file.
 
 Let's walk through installing [LimboAI for Godot 4.3](https://godotengine.org/asset-library/asset/3228) with **godam**:
 
-1. Install **godam**:  
-   `cargo install --git https://github.com/nilsiker/godam`
+First off you need to install godam. You can download the [latest release binary](https://github.com/nilsiker/godam/releases/latest) and add it to your PATH, or build it from source using `cargo install godam`.
+
+Following this, follow the procedure below to try it out:
   
-2. Navigate to your Godot project directory:  
+1. Navigate to your Godot project directory:  
    `cd path/to/your/godot/project`
 
-3. Initialize **godam** in your project:  
+2. Initialize **godam** in your project:  
    `godam init`
 
-4. Search for an asset by name:  
+3. Search for an asset by name:  
    `godam search LimboAI`
 
-5. Install the asset using its ID:  
+4. Install the asset using its ID:  
    `godam install 3228`
 
-6. List all assets managed by **godam**:  
+5. List all assets managed by **godam**:  
    `godam list`
   
-7. Install all assets defined in `godam.toml`:  
+6. Install all assets defined in `godam.toml`:  
    `godam install`
   
-8. Clean the cache:  
+7. Clean the cache:  
    `godam clean`
 
 ## 🚧 Disclaimer

@@ -1,6 +1,6 @@
 [package]
 name = "godam"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 description = "godam (Godot Asset Manager) is an unofficial minimal command-line tool to install and manage addons from the Godot Asset Library."

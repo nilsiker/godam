@@ -47,9 +47,9 @@ pub async fn exec(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
 
     if let Some(ids) = ids {
         for id in ids {
-            if config.get_asset(id).is_err() {
+            if config.get_asset_info(id).is_none() {
                 match asset_library::get_asset_by_id(id).await {
-                    Ok(asset) => config.add_asset(asset)?,
+                    Ok(asset) => config.add_asset(id.to_string(), asset)?,
                     Err(e) => warn!("{e}"),
                 }
             }
@@ -58,19 +58,20 @@ pub async fn exec(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
 
     let progress = MultiProgress::new();
 
-    let assets = Config::get()?.assets;
+    let assets = Config::get()?.asset_infos;
     let install_folders = get_install_folders_in_project()?;
 
-    let not_installed_assets: Vec<AssetInfo> = assets
+    let not_installed_assets: Vec<(String, AssetInfo)> = assets
         .into_iter()
-        .filter_map(|asset| {
-            let Some(folder) = config.get_install_folder(&asset.asset_id) else {
-                return Some(asset);
+        .filter_map(|entry| {
+            let Some(folder) = config.get_install_folder(&entry.0) else {
+                return Some(entry);
             };
+
             if install_folders.contains(folder) {
                 None
             } else {
-                Some(asset)
+                Some(entry)
             }
         })
         .collect();
@@ -79,12 +80,12 @@ pub async fn exec(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
 
     let mut tasks = JoinSet::new();
 
-    for asset in not_installed_assets {
+    for (id, asset) in not_installed_assets {
         let config = config.clone();
         let pb = progress.add(ProgressBar::new_spinner().with_style(progress_style()));
         tasks.spawn(async move {
             pb.enable_steady_tick(std::time::Duration::from_millis(100));
-            match install_asset(&asset, &pb, config).await {
+            match install_asset(&id, &asset, &pb, config).await {
                 Ok(()) => pb.complete("Installed", &asset.title),
                 Err(e) => pb.fail(&asset.title, &e.to_string()),
             };
@@ -97,20 +98,21 @@ pub async fn exec(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
 }
 
 async fn install_asset(
+    id: &str,
     asset: &AssetInfo,
     progress: &ProgressBar,
     config: Arc<Mutex<Config>>,
 ) -> Result<(), InstallError> {
     progress.start("Fetching", &asset.title);
-    let archive: AssetArchive = match cache::get(asset) {
+    let archive: AssetArchive = match cache::get(id) {
         Ok(hit) => hit,
 
         Err(_) => {
             let blob = asset_library::download(asset).await?;
-            cache::write_to_cache(&asset.asset_id, &blob)?;
+            cache::write_to_cache(id, &blob)?;
             let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
             AssetArchive {
-                id: asset.asset_id.clone(),
+                id: id.to_string(),
                 archive: ZipArchive::new(cursor)?,
             }
         }
@@ -129,7 +131,7 @@ async fn install_asset(
                     ))
                 }
             };
-            if let Err(e) = config.set_install_folder(&asset.asset_id, install_folder_name) {
+            if let Err(e) = config.set_install_folder(id, install_folder_name) {
                 progress.fail(&asset.title, &e.to_string());
             }
         }

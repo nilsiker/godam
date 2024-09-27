@@ -30,7 +30,6 @@ pub enum AssetError {
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct AssetInfo {
-    pub asset_id: String,
     pub title: String,
     pub download_url: String,
 }
@@ -69,15 +68,15 @@ pub fn get_install_folders_in_project() -> Result<Vec<String>, AssetError> {
     Ok(folders)
 }
 
-pub fn uninstall(asset: &AssetInfo) -> Result<(), AssetError> {
+pub fn uninstall(id: String) -> Result<(), AssetError> {
     let config = Config::get()?;
 
-    match config.get_install_folder(&asset.asset_id) {
+    match config.get_install_folder(&id) {
         Some(install_folder) => {
             let asset_path = get_install_folder_path(install_folder);
             safe_remove_dir(&asset_path)?;
             Ok(())
         }
-        None => Err(AssetError::NotInstalled(asset.asset_id.clone())),
+        None => Err(AssetError::NotInstalled(id)),
     }
 }

@@ -7,7 +7,7 @@ use crate::{
     godot::asset_library::AssetBlob,
 };
 
-use crate::{assets::AssetInfo, info, traits::ReadSeek, warn};
+use crate::{info, traits::ReadSeek, warn};
 
 use zip::ZipArchive;
 
@@ -83,17 +83,17 @@ pub fn write_to_cache(id: &str, archive: &AssetBlob) -> Result<(), std::io::Erro
     Ok(())
 }
 
-pub fn get(asset: &AssetInfo) -> Result<AssetArchive, std::io::Error> {
+pub fn get(id: &str) -> Result<AssetArchive, std::io::Error> {
     ensure_cache_dir()?;
 
-    let file_path = get_cached_zip_path(&asset.asset_id);
+    let file_path = get_cached_zip_path(id);
 
     let file = open(&file_path)?;
     let boxed_file: Box<dyn ReadSeek> = Box::new(file);
     let archive = zip::read::ZipArchive::new(boxed_file)?;
 
     Ok(AssetArchive {
-        id: asset.asset_id.clone(),
+        id: id.to_string(),
         archive,
     })
 }

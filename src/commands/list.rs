@@ -8,27 +8,23 @@ pub fn exec() -> Result<(), ConfigError> {
     let config = Config::get()?;
 
     let longest_id_length = config
-        .assets
+        .asset_infos
         .iter()
-        .max_by(|a, b| a.asset_id.len().cmp(&b.asset_id.len()))
+        .max_by(|a, b| a.0.len().cmp(&b.0.len()))
         .expect("one is longest")
-        .asset_id
+        .0
         .len();
 
     let longest_title = config
-        .assets
+        .asset_infos
         .iter()
-        .max_by(|a, b| a.title.len().cmp(&b.title.len()))
+        .max_by(|a, b| a.1.title.len().cmp(&b.1.title.len()))
         .expect("one is longest")
+        .1
         .title
         .len();
 
-    for AssetInfo {
-        asset_id: id,
-        title,
-        ..
-    } in config.assets
-    {
+    for (id, AssetInfo { title, .. }) in config.asset_infos {
         info!(
             "{id:>width$}: {title:<title_width$}",
             width = longest_id_length,

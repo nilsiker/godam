@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -15,9 +15,6 @@ use crate::{
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
-    #[error("Asset {0} is not present in configuration.")]
-    AssetNotFound(String),
-
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
@@ -36,8 +33,8 @@ pub enum ConfigError {
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub godot_version: Version,
-    pub assets: Vec<AssetInfo>,
-    pub install_folders: HashMap<String, String>,
+    pub asset_infos: BTreeMap<String, AssetInfo>,
+    pub install_folders: BTreeMap<String, String>,
 }
 
 impl Config {
@@ -49,11 +46,8 @@ impl Config {
         Ok(config)
     }
 
-    pub fn get_asset(&self, id: &str) -> Result<&AssetInfo, ConfigError> {
-        self.assets
-            .iter()
-            .find(|a| a.asset_id == id)
-            .ok_or(ConfigError::AssetNotFound(id.to_string()))
+    pub fn get_asset_info(&self, id: &str) -> Option<&AssetInfo> {
+        self.asset_infos.get(id)
     }
 
     pub fn get_install_folder(&self, asset_id: &str) -> Option<&String> {
@@ -73,9 +67,9 @@ impl Config {
         let version = godot::project::get_version()?;
 
         let config = Config {
-            assets: vec![],
+            asset_infos: BTreeMap::new(),
             godot_version: version,
-            install_folders: HashMap::new(),
+            install_folders: BTreeMap::new(),
         };
 
         let contents = toml::to_string(&config)?;
@@ -90,35 +84,25 @@ impl Config {
         Ok(())
     }
 
-    pub fn add_asset(&mut self, asset: AssetInfo) -> Result<(), ConfigError> {
-        if self.assets.contains(&asset) {
-            println!("Asset is already registered. Skipping...");
-        } else {
-            self.assets.push(asset);
-            self.save()?
-        }
-        Ok(())
+    pub fn add_asset(&mut self, id: String, asset: AssetInfo) -> Result<(), ConfigError> {
+        self.asset_infos.insert(id, asset);
+        self.save()
     }
 
-    pub fn remove_asset(&mut self, asset_id: &str) -> Result<(), ConfigError> {
-        match self
-            .assets
-            .iter()
-            .position(|asset| asset.asset_id == asset_id)
-        {
-            Some(index) => {
-                self.assets.remove(index);
-            }
-            None => return Err(ConfigError::AssetNotFound(asset_id.to_string())),
-        };
+    pub fn remove_asset(
+        &mut self,
+        id: &str,
+    ) -> Result<(Option<AssetInfo>, Option<String>), ConfigError> {
+        let removed_info = self.asset_infos.remove(id);
+        let removed_folder = self.install_folders.remove(id);
+        self.save()?;
 
-        self.install_folders.remove(asset_id);
-        self.save()
+        Ok((removed_info, removed_folder))
     }
 
     pub fn save(&self) -> Result<(), ConfigError> {
         let config_path = get_config_path();
-        let str = toml::to_string_pretty(self)?;
+        let str = toml::to_string(self)?;
         Ok(crate::fs::safe_write(config_path, str)?)
     }
 }

@@ -2,7 +2,6 @@
 name: Build and Release Binaries
 
 on: 
-  workflow_dispatch:
   push:
     tags:
       - 'v*'  # Run this workflow only when a new tag is pushed (e.g., v1.0, v1.1)

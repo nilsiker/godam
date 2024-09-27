@@ -1,67 +1,41 @@
+name: Release
 
-name: Build and Release Binaries
+permissions:
+  contents: write
 
-on: 
+on:
   push:
     tags:
-      - 'v*'  # Run this workflow only when a new tag is pushed (e.g., v1.0, v1.1)
+      - v[0-9]+.*
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          # changelog: CHANGELOG.md
+          token: ${{ secrets.GITHUB_TOKEN }}
 
+  upload-assets:
+    needs: create-release
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
         include:
-          - os: ubuntu-latest
-            extension: ""
-            target: x86_64-unknown-linux-gnu
-          - os: macos-latest
-            extension: ""
-            target: x86_64-apple-darwin
-          - os: windows-latest
-            extension: ".exe"
-            target: x86_64-pc-windows-msvc
-
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Install Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@v4
+      - uses: taiki-e/upload-rust-binary-action@v1
         with:
-          toolchain: stable
+          bin: godam
           target: ${{ matrix.target }}
-          override: true
-
-      - name: Build binary
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: godam-${{ github.ref_name }}-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/godam${{ matrix.extension }}
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download binaries from build jobs
-        uses: actions/download-artifact@v4
-
-      - name: Create GitHub Release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: |
-            godam-${{ github.ref_name }}-x86_64-unknown-linux-gnu
-            godam-${{ github.ref_name }}-x86_64-apple-darwin
-            godam-${{ github.ref_name }}-x86_64-pc-windows-msvc.exe
+          tar: unix
+          zip: windows
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.ref }}
-          name: Release ${{ github.ref_name }}
-          body: |
-            Release of version ${{ github.ref_name }}.
-            Contains binaries for Linux, macOS, and Windows.

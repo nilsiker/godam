@@ -42,7 +42,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: godam-${{ github.ref_name }}-${{ matrix.target }}-${{ github.sha }}
+          name: godam-${{ github.ref_name }}-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/godam${{ matrix.extension }}
 
   release:

@@ -11,7 +11,7 @@
 
 The goal of **godam** is simple: allow developers to easily manage Godot project assets via the command line, keeping asset dependencies out of version control systems (VCS). Inspired by package managers like Cargo and npm, **godam** uses a declarative configuration file to track assets, making them easily installable without cluttering your VCS.
 
-> ⚠️ **godam** modifies files within your project directory, specifically under the `addons` folder. While care has been taken to avoid any mishaps, always back up your project, understand you are using a tool that creates, modifies and deletes files on your local computer.
+> ⚠️ **godam** modifies files within your project directory, specifically under the `addons` folder. While care has been taken to avoid any mishaps, always back up your project, and understand you are using a tool that **creates**, **modifies** and **deletes** files on your local computer.
 
 ## ✨ Features
 

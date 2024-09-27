@@ -42,12 +42,13 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
     
   publish-crate:
-    name: Publish
+    name: Publish to crates.io
     runs-on: ubuntu-latest
+    env:
+          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
     steps:
-      - name: Publish to crates.io
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo publish --token ${CRATES_TOKEN}
-        env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+        
+

@@ -35,6 +35,7 @@ jobs:
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: godam
+          archive: $bin-$tag-$target
           target: ${{ matrix.target }}
           tar: unix
           zip: windows

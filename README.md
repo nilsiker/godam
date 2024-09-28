@@ -24,6 +24,11 @@ Here's a rundown of what **godam** can currently do:
 - **List** all assets managed by **godam**.
 - **Clean** the local asset cache, removing all downloaded zip archives.
 
+
+<p align="center">
+  <img alt="command-line showcase of initializing, searching and installing using godam" src="media/godam_basic_example.gif" />
+</p>
+
 ## ❔ How It Works
 
 **godam** sets up your Godot project by creating a `godam.toml` file, a `.godam` cache folder, and a `.gitignore` within your `addons` folder. The `.gitignore` ensures that only the `godam.toml` configuration file is tracked in Git, while addon files are omitted.
@@ -97,3 +102,9 @@ To get started:
 3. Submit a pull request when you’re ready!
 
 Be sure to check out the issues tab for ideas on what needs work. Do not be a stranger, feel free to reach out, and let's build something cool together for the Godot community!
+
+##
+
+## License
+
+This tool is licensed under the [MIT License](./LICENSE).

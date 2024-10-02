@@ -49,7 +49,7 @@ Let's walk through installing [LimboAI for Godot 4.3](https://godotengine.org/as
 
 First off you need to install godam. You can download the [latest release binary](https://github.com/nilsiker/godam/releases/latest) and add it to your PATH, or build it from source using `cargo install godam`.
 
-> ⚠️ When installing from source, the MSRV (Minimum Supported Rust Version) is 1.81
+> ⚠️ When installing from source, the MSRV (Minimum Supported Rust Version) is 1.81.
 
 Once installed, follow the procedure below to try it out:
 

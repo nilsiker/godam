@@ -1,9 +1,9 @@
-# **godam** 
+# **godam**
 
 ![Rust 1.81](https://img.shields.io/badge/rust-1.81-orange)
 [![Build Status](https://github.com/nilsiker/godam/actions/workflows/release.yml/badge.svg)](https://github.com/nilsiker/godam/actions/workflows/release.yml)
 
-**godam** (**God**ot **A**sset **M**anager) is an unofficial, lightweight command-line tool designed to streamline the management of assets from the Godot Asset Library. 
+**godam** (**God**ot **A**sset **M**anager) is an unofficial, lightweight command-line tool designed to streamline the management of assets from the Godot Asset Library.
 
 <p align="center">
   <img alt="an icon of a orange pixel-art robot head, with a command line icon obscuring its face, titled 'godam' just below it" src="media/godam.png" />
@@ -24,7 +24,6 @@ Here's a rundown of what **godam** can currently do:
 - **List** all assets managed by **godam**.
 - **Clean** the local asset cache, removing all downloaded zip archives.
 
-
 <p align="center">
   <img alt="command-line showcase of initializing, searching and installing using godam" src="media/godam_basic_example.gif" />
 </p>
@@ -39,7 +38,7 @@ When you run `godam install <ID>`, the following happens:
 2. The `.godam` cache is checked for the asset; if not cached, the asset zip is downloaded.
 3. **godam** maps the asset's ID to its install location in `godam.toml`, keeping track of what plugin ID maps to what install folder.
 4. The asset's `addons` folder is extracted from the zip and copied into your project.
-  
+
 This process is repeated for every asset listed in the `godam.toml` file.
 
 > ⚠️ **godam** currently only respects addon folder structure, meaning that it expects to find the `addons` folder in either directly inside the zip file or located under an immediate folder in the archive. Any other folder structure will throw an error, and cannot be installed using godam.
@@ -50,8 +49,10 @@ Let's walk through installing [LimboAI for Godot 4.3](https://godotengine.org/as
 
 First off you need to install godam. You can download the [latest release binary](https://github.com/nilsiker/godam/releases/latest) and add it to your PATH, or build it from source using `cargo install godam`.
 
-Following this, follow the procedure below to try it out:
-  
+> ⚠️ When installing from source, the MSRV (Minimum Supported Rust Version) is 1.81
+
+Once installed, follow the procedure below to try it out:
+
 1. Navigate to your Godot project directory:  
    `cd path/to/your/godot/project`
 
@@ -66,10 +67,10 @@ Following this, follow the procedure below to try it out:
 
 5. List all assets managed by **godam**:  
    `godam list`
-  
+
 6. Install all assets defined in `godam.toml`:  
    `godam install`
-  
+
 7. Clean the cache:  
    `godam clean`
 
@@ -86,7 +87,7 @@ Here’s what’s on the roadmap for future development:
 - Asset version freezing and upgrading (awaiting asset library API support)
 - Nicer console output
 - Global caching and symlinks
-- Test suites for preventing bugs and regressions 
+- Test suites for preventing bugs and regressions
 - General codebase improvements, improving clarity, maintainability and performance
 
 ---

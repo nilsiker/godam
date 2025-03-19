@@ -1,4 +1,4 @@
-FROM barichello/godot-ci:4.3
+FROM barichello/godot-ci:4.4
 
 # setup rust
 ENV RUSTUP_HOME=/usr/local/rustup \

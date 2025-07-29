@@ -135,12 +135,68 @@ pub mod path {
         use crate::fs::get_path_asserted_within_project;
 
         use super::*;
-        #[test]
-        fn paths_are_within_working_directory() -> Result<(), Box<dyn std::error::Error>> {
-            let cache_path = get_cache_path();
-            let cached_zip_path = get_cached_zip_path("1234");
 
+        #[test]
+        fn config_path_is_within_working_directory() -> Result<(), Box<dyn std::error::Error>> {
+            let config_path = get_config_path();
+            let _ = get_path_asserted_within_project(config_path)?;
+
+            Ok(())
+        }
+
+        #[test]
+        fn project_file_path_is_within_working_directory() -> Result<(), Box<dyn std::error::Error>>
+        {
+            let project_path = get_project_file_path();
+            let _ = get_path_asserted_within_project(project_path)?;
+
+            Ok(())
+        }
+
+        #[test]
+        fn addons_path_is_within_working_directory() -> Result<(), Box<dyn std::error::Error>> {
+            let addons_path = get_addons_path();
+            let _ = get_path_asserted_within_project(addons_path)?;
+
+            Ok(())
+        }
+
+        #[test]
+        fn addons_gitignore_path_is_within_working_directory(
+        ) -> Result<(), Box<dyn std::error::Error>> {
+            let gitignore_path = get_gitignore_path();
+            let _ = get_path_asserted_within_project(gitignore_path)?;
+
+            Ok(())
+        }
+
+        #[test]
+        fn install_folder_path_are_within_working_directory(
+        ) -> Result<(), Box<dyn std::error::Error>> {
+            let install_path = get_install_folder_path("dummy_folder_name");
+            let _ = get_path_asserted_within_project(&install_path)?;
+
+            Ok(())
+        }
+
+        #[test]
+        fn cache_path_is_within_working_directory() -> Result<(), Box<dyn std::error::Error>> {
+            let cache_path = get_cache_path();
             let _ = get_path_asserted_within_project(cache_path)?;
+
+            Ok(())
+        }
+
+        #[test]
+        fn gitignore_is_within_working_directory() -> Result<(), Box<dyn std::error::Error>> {
+            let gitignore_path = get_gitignore_path();
+            let _ = get_path_asserted_within_project(gitignore_path)?;
+            Ok(())
+        }
+
+        #[test]
+        fn cached_zip_path_is_within_working_directory() -> Result<(), Box<dyn std::error::Error>> {
+            let cached_zip_path = get_cached_zip_path("1234");
             let _ = get_path_asserted_within_project(&cached_zip_path)?;
 
             Ok(())

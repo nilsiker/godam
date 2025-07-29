@@ -18,13 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - ...
-- 
+
 ## [0.1.2] - 2025-03-19
 
 ### Changed
 
 - Add a handful of file system tests to ensure godam only operates inside the project directory.
 - Bumped Dockerfile to use v4.4 of [Barichello's fantastic godot-ci image](https://github.com/abarichello/godot-ci). (https://github.com/nilsiker/godam/issues/24)
+- Updated dependencies to latest versions.
 
 ## [0.1.1] - 2024-09-27
 

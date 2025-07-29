@@ -18,7 +18,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
 RUN . $CARGO_HOME/env
 
 # install godam
-RUN cargo install godam
+RUN cargo install godam --version 0.1.2
 
 WORKDIR /workspace
 

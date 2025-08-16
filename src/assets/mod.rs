@@ -1,8 +1,10 @@
+pub mod asset_archive;
+pub mod asset_config;
+pub mod asset_source;
 pub mod cache;
 pub mod consts;
 
-use cache::AssetArchive;
-use serde::{Deserialize, Serialize};
+use asset_archive::AssetArchive;
 use thiserror::Error;
 
 use crate::{
@@ -26,12 +28,6 @@ pub enum AssetError {
     NotInstalled(String),
     #[error(transparent)]
     Config(#[from] ConfigError),
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
-pub struct AssetInfo {
-    pub title: String,
-    pub download_url: String,
 }
 
 pub fn install(asset_archive: AssetArchive) -> Result<(), AssetError> {

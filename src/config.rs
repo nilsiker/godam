@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    assets::AssetInfo,
+    asset_providers::AssetMetadata,
     fs::{
         path::{get_addons_path, get_config_path, get_gitignore_path},
         ADDONS_GITIGNORE_CONTENT,
@@ -33,7 +33,7 @@ pub enum ConfigError {
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub godot_version: Version,
-    pub asset_infos: BTreeMap<String, AssetInfo>,
+    pub asset_infos: BTreeMap<String, AssetMetadata>,
     pub install_folders: BTreeMap<String, String>,
 }
 
@@ -46,7 +46,7 @@ impl Config {
         Ok(config)
     }
 
-    pub fn get_asset_info(&self, id: &str) -> Option<&AssetInfo> {
+    pub fn get_asset_info(&self, id: &str) -> Option<&AssetMetadata> {
         self.asset_infos.get(id)
     }
 
@@ -84,7 +84,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn add_asset(&mut self, id: String, asset: AssetInfo) -> Result<(), ConfigError> {
+    pub fn add_asset(&mut self, id: String, asset: AssetMetadata) -> Result<(), ConfigError> {
         self.asset_infos.insert(id, asset);
         self.save()
     }
@@ -92,7 +92,7 @@ impl Config {
     pub fn remove_asset(
         &mut self,
         id: &str,
-    ) -> Result<(Option<AssetInfo>, Option<String>), ConfigError> {
+    ) -> Result<(Option<AssetMetadata>, Option<String>), ConfigError> {
         let removed_info = self.asset_infos.remove(id);
         let removed_folder = self.install_folders.remove(id);
         self.save()?;

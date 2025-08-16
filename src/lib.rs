@@ -1,3 +1,4 @@
+mod asset_providers;
 mod assets;
 mod commands;
 mod config;
@@ -5,6 +6,7 @@ mod console;
 mod fs;
 mod godot;
 mod traits;
+mod web_requests;
 
 use clap::Parser;
 use commands::*;

@@ -9,14 +9,10 @@ use tokio::task::JoinSet;
 use zip::ZipArchive;
 
 use crate::{
-    assets::{
-        self,
-        cache::{self, AssetArchive},
-        get_install_folders_in_project, AssetInfo,
-    },
+    asset_providers::{asset_lib::AssetLib, AssetMetadata, AssetProvider, AssetProviderError},
+    assets::{self, asset_archive::AssetArchive, cache, get_install_folders_in_project},
     config::{self, Config},
     console::{progress_style, GodamProgressMessage},
-    godot::asset_library::{self, AssetLibraryError},
     traits::ReadSeek,
     warn,
 };
@@ -27,7 +23,7 @@ pub enum InstallError {
     Config(#[from] config::ConfigError),
 
     #[error(transparent)]
-    Request(#[from] AssetLibraryError),
+    AssetProvider(#[from] AssetProviderError),
 
     #[error("Cache error: {0}")]
     Cache(#[from] std::io::Error),
@@ -48,8 +44,12 @@ pub async fn exec(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
     if let Some(ids) = ids {
         for id in ids {
             if config.get_asset_info(id).is_none() {
-                match asset_library::get_asset_by_id(id).await {
-                    Ok(asset) => config.add_asset(id.to_string(), asset)?,
+                match AssetLib.lookup(id).await {
+                    Ok(Some(asset)) => config.add_asset(id.to_string(), asset)?,
+                    Ok(None) => {
+                        warn!("No asset found with id {id}");
+                        continue;
+                    }
                     Err(e) => warn!("{e}"),
                 }
             }
@@ -61,7 +61,7 @@ pub async fn exec(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
     let assets = Config::get()?.asset_infos;
     let install_folders = get_install_folders_in_project()?;
 
-    let not_installed_assets: Vec<(String, AssetInfo)> = assets
+    let not_installed_assets: Vec<(String, AssetMetadata)> = assets
         .into_iter()
         .filter_map(|entry| {
             let Some(folder) = config.get_install_folder(&entry.0) else {
@@ -99,7 +99,7 @@ pub async fn exec(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
 
 async fn install_asset(
     id: &str,
-    asset: &AssetInfo,
+    asset: &AssetMetadata,
     progress: &ProgressBar,
     config: Arc<Mutex<Config>>,
 ) -> Result<(), InstallError> {
@@ -108,7 +108,7 @@ async fn install_asset(
         Ok(hit) => hit,
 
         Err(_) => {
-            let blob = asset_library::download(asset).await?;
+            let blob = AssetLib.download(&asset.asset_id).await?;
             cache::write_to_cache(id, &blob)?;
             let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
             AssetArchive {

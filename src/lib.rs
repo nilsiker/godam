@@ -1,3 +1,4 @@
+mod addons_dir;
 mod asset_providers;
 mod assets;
 mod commands;
@@ -26,7 +27,8 @@ pub async fn run(command: &Command) -> Result<(), Box<dyn std::error::Error>> {
     match command {
         Command::Init => init::exec()?,
         Command::Search { name } => search::exec(name).await?,
-        Command::Install { name } => install::exec(name).await?,
+        Command::Add { id, source } => add::exec(id, source).await?,
+        Command::Install { name, source } => install::exec(name, source).await?,
         Command::Uninstall { name } => uninstall::exec(name)?,
         Command::List => list::exec()?,
         Command::Clean => clean::exec()?,

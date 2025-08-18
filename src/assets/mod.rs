@@ -1,5 +1,5 @@
 pub mod asset_archive;
-pub mod asset_config;
+pub mod asset_definition;
 pub mod asset_source;
 pub mod cache;
 pub mod consts;

@@ -1,30 +1,30 @@
 use std::{
-    io::Cursor,
+    path::PathBuf,
     sync::{Arc, Mutex},
 };
 
 use indicatif::{MultiProgress, ProgressBar};
 use thiserror::Error;
 use tokio::task::JoinSet;
-use zip::ZipArchive;
 
 use crate::{
     addons_dir::{self, AddonsDirError},
     asset_providers::{asset_lib::AssetLib, AssetProvider, AssetProviderError},
     assets::{
-        self, asset_archive::AssetArchive, asset_definition::AssetDefinition,
-        asset_source::AssetSource, cache,
+        self,
+        asset_definition::AssetDefinition,
+        asset_source::AssetSource,
+        plugin_config::{PluginConfig, PluginConfigError},
     },
     config::{self, Config},
     console::{progress_style, GodamProgressMessage},
-    fs::path::get_install_folder_path,
-    info,
-    traits::ReadSeek,
-    warn,
+    info, warn,
 };
 
 #[derive(Error, Debug)]
 pub enum InstallError {
+    #[error("Could not find asset metadata for ID: {0}")]
+    AssetMetadataNotFound(String),
     #[error(transparent)]
     Config(#[from] config::ConfigError),
 
@@ -40,18 +40,33 @@ pub enum InstallError {
     #[error(transparent)]
     Asset(#[from] assets::AssetError),
 
-    #[error("An error occured when locking resources for a thread.")]
-    Mutex,
-
     #[error(transparent)]
     AddonsDir(#[from] AddonsDirError),
+
+    #[error(transparent)]
+    PluginConfig(#[from] PluginConfigError),
 }
 
-pub async fn exec(ids: &Option<Vec<String>>, source: &AssetSource) -> Result<(), InstallError> {
-    let config = Arc::new(Mutex::new(Config::get()?));
+pub async fn exec(id: &Option<String>, source: &AssetSource) -> Result<(), InstallError> {
+    if let Some(id) = id {
+        let mut config = Config::get()?;
+
+        let asset_def = match source {
+            AssetSource::AssetLib => get_asset_lib_asset_def(id).await?,
+            AssetSource::Local => get_local_asset_def(id)?,
+            AssetSource::Git => get_git_asset_def(id).await?,
+        };
+
+        match config.get_asset_info(id) {
+            Some(def) => warn!("{} is already added to the project, skipping.", def.title),
+            None => {
+                config.add_asset(id.to_string(), asset_def.clone())?;
+                info!("Added {} to project.", asset_def.title);
+            }
+        }
+    }
 
     let progress = MultiProgress::new();
-
     let assets = Config::get()?.asset_definitions;
 
     if assets.is_empty() {
@@ -61,14 +76,23 @@ pub async fn exec(ids: &Option<Vec<String>>, source: &AssetSource) -> Result<(),
 
     let mut tasks = JoinSet::new();
 
-    for (id, asset) in assets {
-        let config = config.clone();
+    let arc_config = Arc::new(Mutex::new(Config::get()?));
+    for asset in assets.into_values() {
+        let arc_config = arc_config.clone();
         let pb = progress.add(ProgressBar::new_spinner().with_style(progress_style()));
+
+        if let Some(configured_install_folder) = Config::get()?.get_install_folder(&asset.id) {
+            if addons_dir::contains(configured_install_folder)? {
+                pb.complete("Already installed", &asset.title);
+                continue;
+            }
+        }
+
         tasks.spawn(async move {
             pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
-            match install_asset(&id, &asset, &pb, config).await {
-                Ok(()) => pb.complete("Installed", &asset.title),
+            match asset.install(&pb, arc_config).await {
+                Ok(_) => pb.complete("Installed", &asset.title),
                 Err(e) => pb.fail(&asset.title, &e.to_string()),
             };
         });
@@ -79,42 +103,34 @@ pub async fn exec(ids: &Option<Vec<String>>, source: &AssetSource) -> Result<(),
     Ok(())
 }
 
-async fn install_asset(
-    id: &str,
-    asset: &AssetDefinition,
-    progress: &ProgressBar,
-    config: Arc<Mutex<Config>>,
-) -> Result<(), InstallError> {
-    progress.start("Fetching", &asset.title);
-    let archive: AssetArchive = match cache::get(id) {
-        Ok(hit) => hit,
-        Err(_) => {
-            let blob = AssetLib.download(&asset.id).await?;
-            cache::write_to_cache(id, &blob)?;
-            let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
-            AssetArchive {
-                id: id.to_string(),
-                archive: ZipArchive::new(cursor)?,
-            }
-        }
+async fn get_git_asset_def(_id: &str) -> Result<AssetDefinition, InstallError> {
+    todo!()
+}
+
+fn get_local_asset_def(id: &str) -> Result<AssetDefinition, InstallError> {
+    let local_path = PathBuf::from(id).join("plugin.cfg");
+
+    let plugin_config = PluginConfig::try_from(local_path)?;
+
+    let name = plugin_config.name();
+
+    Ok(AssetDefinition {
+        id: id.to_string(),
+        title: name.to_string(),
+        source: AssetSource::Local,
+    })
+}
+
+async fn get_asset_lib_asset_def(id: &str) -> Result<AssetDefinition, InstallError> {
+    let Some(metadata) = AssetLib.lookup(id).await? else {
+        return Err(InstallError::AssetMetadataNotFound(id.to_string()));
     };
 
-    let mut config = config.lock().map_err(|_| InstallError::Mutex)?;
-
-    let Some((install_folder_name, _)) = archive.get_plugin_info() else {
-        return Err(InstallError::Asset(
-            assets::AssetError::InvalidAssetStructure("Could not find plugin name".to_string()),
-        ));
+    let asset_def = AssetDefinition {
+        id: id.to_string(),
+        title: metadata.title,
+        source: AssetSource::AssetLib,
     };
 
-    if addons_dir::contains(&install_folder_name)? {
-        return Ok(());
-    }
-
-    config.set_install_folder(id, install_folder_name)?;
-
-    progress.start("Unpacking", &asset.title);
-    assets::install(archive).map_err(InstallError::from)?;
-
-    Ok(())
+    Ok(asset_def)
 }

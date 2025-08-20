@@ -1,5 +1,4 @@
 use crate::{
-    asset_providers::AssetMetadata,
     assets::asset_definition::AssetDefinition,
     config::{Config, ConfigError},
     info,

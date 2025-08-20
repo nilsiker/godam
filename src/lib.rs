@@ -27,9 +27,8 @@ pub async fn run(command: &Command) -> Result<(), Box<dyn std::error::Error>> {
     match command {
         Command::Init => init::exec()?,
         Command::Search { name } => search::exec(name).await?,
-        Command::Add { id, source } => add::exec(id, source).await?,
-        Command::Install { name, source } => install::exec(name, source).await?,
-        Command::Uninstall { name } => uninstall::exec(name)?,
+        Command::Install { id, source } => install::exec(id, source).await?,
+        Command::Uninstall { id } => uninstall::exec(id)?,
         Command::List => list::exec()?,
         Command::Clean => clean::exec()?,
     };

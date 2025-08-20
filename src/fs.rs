@@ -1,5 +1,3 @@
-
-
 //! godam::fs contains wrappers for all filesystem utilities used in the repository
 
 pub const ADDONS_GITIGNORE_CONTENT: &str = "*\n!.gitignore\n!godam.toml\n.godam";
@@ -44,24 +42,6 @@ pub fn open(path: &Path) -> Result<File> {
 
 pub fn create(path: &Path) -> Result<File> {
     std::fs::File::create(path)
-}
-
-pub fn get_folders_in_directory(path: &Path) -> Result<Vec<String>> {
-    let folder_names = std::fs::read_dir(path)?
-        .filter_map(|result_dir_entry| {
-            result_dir_entry.ok().and_then(|entry| {
-                let path: PathBuf = entry.path();
-                if path.is_dir() {
-                    path.file_name()?
-                        .to_str()
-                        .map(|file_name| file_name.to_string())
-                } else {
-                    None
-                }
-            })
-        })
-        .collect();
-    Ok(folder_names)
 }
 
 pub fn copy<R, W>(from: &mut R, to: &mut W) -> Result<()>

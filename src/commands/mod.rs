@@ -1,4 +1,3 @@
-pub mod add;
 pub mod clean;
 pub mod init;
 pub mod install;
@@ -21,28 +20,21 @@ pub enum Command {
         #[arg(index = 1)]
         name: String,
     },
-    /// Installs the specified addon to your Godot project, adding it to the godam configuration.
-    #[command(alias = "a")]
-    Add {
-        #[arg(index = 1)]
-        id: String,
-        #[arg(short = 's', default_value_t, value_enum)]
-        source: AssetSource,
-    },
+    /// Adds the specified addon to your Godam configuration.
     #[command(alias = "i")]
+    /// Installs all configured addons to your Godot project.
     Install {
-        /// The name of the asset you want to install
         #[arg(index = 1)]
-        name: Option<Vec<String>>,
+        id: Option<String>,
         #[arg(short = 's', default_value_t, value_enum)]
         source: AssetSource,
     },
-    /// Uninstalls the specified addon from your Godot project, removing it from the godam configuration.
+    /// Uninstalls the specified addon from your Godot project
     #[command(alias = "u")]
     Uninstall {
-        /// The name of the asset you want to uninstall
+        /// The id of the asset you want to uninstall. If not specified, all assets will be uninstalled.
         #[arg(index = 1)]
-        name: Option<String>,
+        id: Option<String>,
     },
     /// Lists all assets being managed by Godam
     #[command(alias = "ls", alias = "l")]

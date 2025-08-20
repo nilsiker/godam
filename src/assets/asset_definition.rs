@@ -1,10 +1,112 @@
-use serde::{Deserialize, Serialize};
+use std::{
+    io::Cursor,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
-use super::asset_source::AssetSource;
+use indicatif::ProgressBar;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use zip::{result::ZipError, ZipArchive};
+
+use crate::{
+    addons_dir::{self, AddonsDirError},
+    asset_providers::{asset_lib::AssetLib, AssetProvider, AssetProviderError},
+    config::{Config, ConfigError},
+    console::GodamProgressMessage,
+    traits::ReadSeek,
+};
+
+use super::{asset_archive::AssetArchive, asset_source::AssetSource, cache, AssetError};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AssetDefinition {
     pub id: String,
     pub title: String,
     pub source: AssetSource,
+}
+
+#[derive(Error, Debug)]
+pub enum AssetDefinitionError {
+    #[error("Failed to install asset {0}: {1}")]
+    FailedInstall(String, String),
+    #[error(transparent)]
+    AssetProvider(#[from] AssetProviderError),
+    #[error(transparent)]
+    Cache(#[from] std::io::Error),
+    #[error(transparent)]
+    Zip(#[from] ZipError),
+    #[error(transparent)]
+    Asset(#[from] AssetError),
+    #[error(transparent)]
+    AddonsDir(#[from] AddonsDirError),
+    #[error(transparent)]
+    Config(#[from] ConfigError),
+    #[error("An error occurred when locking resources for a thread.")]
+    Mutex,
+}
+
+impl AssetDefinition {
+    pub async fn install(
+        &self,
+        progress: &ProgressBar,
+        config: Arc<Mutex<Config>>,
+    ) -> Result<(), AssetDefinitionError> {
+        match self.source {
+            AssetSource::AssetLib => self.install_asset_lib(progress, config).await,
+            AssetSource::Local => self.install_local(progress, config),
+            AssetSource::Git => self.install_git(progress, config).await,
+        }
+    }
+
+    async fn install_asset_lib(
+        &self,
+        progress: &ProgressBar,
+        config: Arc<Mutex<Config>>,
+    ) -> Result<(), AssetDefinitionError> {
+        let id = &self.id;
+        let title = &self.title;
+
+        progress.start("Fetching", title);
+
+        let archive = match cache::get(id) {
+            Ok(hit) => hit,
+            Err(_) => {
+                let blob = AssetLib.download(id).await?;
+                cache::write_to_cache(id, &blob)?;
+                let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
+                AssetArchive {
+                    id: id.to_string(),
+                    archive: ZipArchive::new(cursor)?,
+                }
+            }
+        };
+
+        progress.start("Unpacking", title);
+        let folder_name = archive.install()?;
+
+        let mut config = config.lock().map_err(|_| AssetDefinitionError::Mutex)?;
+        config.set_install_folder(id, folder_name)?;
+
+        Ok(())
+    }
+
+    async fn install_git(
+        &self,
+        progress: &ProgressBar,
+        config: Arc<Mutex<Config>>,
+    ) -> Result<(), AssetDefinitionError> {
+        Ok(())
+    }
+
+    fn install_local(
+        &self,
+        progress: &ProgressBar,
+        config: Arc<Mutex<Config>>,
+    ) -> Result<(), AssetDefinitionError> {
+        let id = &self.id;
+        let install_path = PathBuf::from(id);
+
+        Ok(())
+    }
 }

@@ -1,5 +1,3 @@
-use thiserror::Error;
-
 use crate::{
     asset_providers::AssetBlob,
     fs::{

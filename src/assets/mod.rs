@@ -3,7 +3,6 @@ pub mod asset_definition;
 pub mod asset_source;
 pub mod cache;
 pub mod consts;
-pub mod plugin_config;
 
 use thiserror::Error;
 

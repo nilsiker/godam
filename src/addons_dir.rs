@@ -11,5 +11,5 @@ pub enum AddonsDirError {
 pub fn contains(folder: &str) -> Result<bool, AddonsDirError> {
     let path = get_install_folder_path(folder);
 
-    Ok(fs::exists(&path)?)
+    Ok(fs::exists(&path)? || fs::symlink::symlink_exists(&path))
 }

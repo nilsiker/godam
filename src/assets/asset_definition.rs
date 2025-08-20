@@ -10,10 +10,11 @@ use thiserror::Error;
 use zip::{result::ZipError, ZipArchive};
 
 use crate::{
-    addons_dir::{self, AddonsDirError},
-    asset_providers::{asset_lib::AssetLib, AssetProvider, AssetProviderError},
+    addons_dir::AddonsDirError,
+    asset_providers::{asset_lib::AssetLib, github::GitHub, AssetProvider, AssetProviderError},
     config::{Config, ConfigError},
     console::GodamProgressMessage,
+    fs::{self, path::get_install_folder_path},
     traits::ReadSeek,
 };
 
@@ -28,8 +29,6 @@ pub struct AssetDefinition {
 
 #[derive(Error, Debug)]
 pub enum AssetDefinitionError {
-    #[error("Failed to install asset {0}: {1}")]
-    FailedInstall(String, String),
     #[error(transparent)]
     AssetProvider(#[from] AssetProviderError),
     #[error(transparent)]
@@ -96,6 +95,30 @@ impl AssetDefinition {
         progress: &ProgressBar,
         config: Arc<Mutex<Config>>,
     ) -> Result<(), AssetDefinitionError> {
+        progress.start("Fetching", &self.title);
+        let cache_id = self.id.replace("/", ":");
+        let archive = match cache::get(&cache_id) {
+            Ok(hit) => hit,
+            Err(_) => {
+                let blob = GitHub.download(&self.id).await?;
+                cache::write_to_cache(&cache_id, &blob)?;
+                let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
+                AssetArchive {
+                    id: self.id.clone(),
+                    archive: ZipArchive::new(cursor)?,
+                }
+            }
+        };
+
+        progress.start("Installing", &self.title);
+        let install_folder = archive.install()?;
+
+        progress.start("Finalizing", &self.title);
+        config
+            .lock()
+            .map_err(|_| AssetDefinitionError::Mutex)?
+            .set_install_folder(&self.id, install_folder)?;
+
         Ok(())
     }
 
@@ -105,7 +128,24 @@ impl AssetDefinition {
         config: Arc<Mutex<Config>>,
     ) -> Result<(), AssetDefinitionError> {
         let id = &self.id;
-        let install_path = PathBuf::from(id);
+        let path = PathBuf::from(id);
+        let folder_name = path
+            .file_name()
+            .expect("Path should have a file name")
+            .to_str()
+            .expect("File name should be valid UTF-8")
+            .to_owned();
+
+        let dest_dir = get_install_folder_path(&folder_name);
+
+        progress.start("Installing", &self.title);
+
+        fs::symlink::symlink_dir(path, dest_dir)?;
+
+        config
+            .lock()
+            .map_err(|_| AssetDefinitionError::Mutex)?
+            .set_install_folder(id, folder_name)?;
 
         Ok(())
     }

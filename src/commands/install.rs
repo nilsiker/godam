@@ -9,15 +9,11 @@ use tokio::task::JoinSet;
 
 use crate::{
     addons_dir::{self, AddonsDirError},
-    asset_providers::{asset_lib::AssetLib, AssetProvider, AssetProviderError},
-    assets::{
-        self,
-        asset_definition::AssetDefinition,
-        asset_source::AssetSource,
-        plugin_config::{PluginConfig, PluginConfigError},
-    },
+    asset_providers::{asset_lib::AssetLib, github::GitHub, AssetProvider, AssetProviderError},
+    assets::{self, asset_definition::AssetDefinition, asset_source::AssetSource},
     config::{self, Config},
     console::{progress_style, GodamProgressMessage},
+    godot::plugin_config::{PluginConfig, PluginConfigError},
     info, warn,
 };
 
@@ -57,12 +53,9 @@ pub async fn exec(id: &Option<String>, source: &AssetSource) -> Result<(), Insta
             AssetSource::Git => get_git_asset_def(id).await?,
         };
 
-        match config.get_asset_info(id) {
-            Some(def) => warn!("{} is already added to the project, skipping.", def.title),
-            None => {
-                config.add_asset(id.to_string(), asset_def.clone())?;
-                info!("Added {} to project.", asset_def.title);
-            }
+        if config.get_asset_info(id).is_none() {
+            config.add_asset(id.to_string(), asset_def.clone())?;
+            info!("Added {} to project.", asset_def.title);
         }
     }
 
@@ -82,8 +75,12 @@ pub async fn exec(id: &Option<String>, source: &AssetSource) -> Result<(), Insta
         let pb = progress.add(ProgressBar::new_spinner().with_style(progress_style()));
 
         if let Some(configured_install_folder) = Config::get()?.get_install_folder(&asset.id) {
+            println!(
+                "Installing {} to {}",
+                asset.title, configured_install_folder
+            );
             if addons_dir::contains(configured_install_folder)? {
-                pb.complete("Already installed", &asset.title);
+                pb.subtle_complete("Already installed", &asset.title);
                 continue;
             }
         }
@@ -103,8 +100,16 @@ pub async fn exec(id: &Option<String>, source: &AssetSource) -> Result<(), Insta
     Ok(())
 }
 
-async fn get_git_asset_def(_id: &str) -> Result<AssetDefinition, InstallError> {
-    todo!()
+async fn get_git_asset_def(id: &str) -> Result<AssetDefinition, InstallError> {
+    let Some(metadata) = GitHub.lookup(id).await? else {
+        return Err(InstallError::AssetMetadataNotFound(id.to_string()));
+    };
+
+    Ok(AssetDefinition {
+        id: id.to_string(),
+        title: metadata.title,
+        source: AssetSource::Git,
+    })
 }
 
 fn get_local_asset_def(id: &str) -> Result<AssetDefinition, InstallError> {

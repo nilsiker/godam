@@ -41,7 +41,9 @@ impl AssetArchive {
         Ok(folder_name)
     }
 
-    fn get_plugin_name_and_files_to_extract(&self) -> Result<(String, Vec<String>), AssetError> {
+    pub fn get_plugin_name_and_files_to_extract(
+        &self,
+    ) -> Result<(String, Vec<String>), AssetError> {
         let Some((plugin_name, plugin_path)) = self.get_plugin_info() else {
             return Err(AssetError::InvalidAssetStructure(self.id.to_string()));
         };

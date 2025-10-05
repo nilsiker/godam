@@ -48,7 +48,6 @@ impl AssetProvider for GitHub {
             return Err(AssetProviderError::NotSupported);
         }
 
-        // let on a slice:
         let Some(reponame) = split.first() else {
             return Err(AssetProviderError::NotSupported);
         };
@@ -57,7 +56,6 @@ impl AssetProvider for GitHub {
         };
 
         let github_url = format!("https://github.com/{reponame}/archive/refs/heads/{branch}.zip");
-        println!("Downloading from: {github_url}");
         let bytes = web_requests::get_blob(Url::parse(&github_url)?).await?;
 
         Ok(AssetBlob { bytes })

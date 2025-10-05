@@ -96,13 +96,14 @@ impl AssetDefinition {
         config: Arc<Mutex<Config>>,
     ) -> Result<(), AssetDefinitionError> {
         progress.start("Fetching", &self.title);
-        let cache_id = self.id.replace("/", ":");
+        let cache_id = self.id.replace("/", "_");
         let archive = match cache::get(&cache_id) {
             Ok(hit) => hit,
             Err(_) => {
                 let blob = GitHub.download(&self.id).await?;
                 cache::write_to_cache(&cache_id, &blob)?;
                 let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
+
                 AssetArchive {
                     id: self.id.clone(),
                     archive: ZipArchive::new(cursor)?,

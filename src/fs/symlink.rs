@@ -1,4 +1,3 @@
-#[cfg(target_os = "linux")]
 use std::path::{Path, PathBuf};
 
 pub fn symlink_dir(src: PathBuf, dst: PathBuf) -> std::io::Result<()> {
@@ -14,7 +13,7 @@ pub fn symlink_dir(src: PathBuf, dst: PathBuf) -> std::io::Result<()> {
 
     #[cfg(target_os = "windows")]
     {
-        std::os::windows::fs::symlink_dir(src, dst)
+        std::os::windows::fs::symlink_dir(absolute_src, absolute_dst)
     }
 }
 

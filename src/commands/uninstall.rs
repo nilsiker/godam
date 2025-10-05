@@ -55,6 +55,7 @@ fn uninstall_single(id: &str, config: &mut Config, progress: &MultiProgress) {
             pb.fail(id, &e.to_string());
         }
     }
+
     pb.start("Removing", &asset.title);
     match config.remove_asset(id) {
         Ok(_) => (),

@@ -33,7 +33,6 @@ macro_rules! prompt_char {
 pub trait GodamProgressMessage {
     fn start(&self, action: &str, msg: &str);
     fn complete(&self, action: &str, msg: &str);
-    fn subtle_complete(&self, action: &str, msg: &str);
     fn fail(&self, msg: &str, reason: &str);
 }
 
@@ -52,10 +51,6 @@ impl GodamProgressMessage for ProgressBar {
             style(action).color256(BLUE),
             style(msg).white()
         ));
-    }
-
-    fn subtle_complete(&self, action: &str, msg: &str) {
-        self.finish_with_message(format!("{} {}", style(action).dim(), style(msg).dim()));
     }
 
     fn fail(&self, msg: &str, reason: &str) {

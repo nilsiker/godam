@@ -5,6 +5,5 @@ use serde::{Deserialize, Serialize};
 pub enum AssetSource {
     #[default]
     AssetLib,
-    Local,
-    Git,
+    Github,
 }

@@ -6,7 +6,6 @@ const GODOT_PROJECT_FILE_PATH: &str = "./project.godot";
 const CACHE_PATH: &str = "./addons/.godam";
 
 const ADDONS_PATH: &str = "./addons";
-const ADDONS_ZIP_PATTERN: &str = "addons";
 const ADDONS_GITIGNORE_PATH: &str = "./addons/.gitignore";
 
 pub fn get_config_path() -> &'static Path {
@@ -29,18 +28,8 @@ pub fn get_addons_path() -> &'static Path {
     Path::new(ADDONS_PATH)
 }
 
-pub fn get_install_folder_path(install_folder: &str) -> PathBuf {
-    get_addons_path().join(install_folder)
-}
-
 pub fn get_gitignore_path() -> &'static Path {
     Path::new(ADDONS_GITIGNORE_PATH)
-}
-
-pub fn get_out_path_from_archive_path(archive_path: &str) -> Option<PathBuf> {
-    archive_path
-        .find(ADDONS_ZIP_PATTERN)
-        .map(|start| PathBuf::new().join(&archive_path[start..]))
 }
 
 #[cfg(test)]
@@ -78,15 +67,6 @@ mod tests {
     {
         let gitignore_path = get_gitignore_path();
         let _ = get_path_asserted_within_project(gitignore_path)?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn install_folder_path_are_within_working_directory() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let install_path = get_install_folder_path("dummy_folder_name");
-        let _ = get_path_asserted_within_project(&install_path)?;
 
         Ok(())
     }

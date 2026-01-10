@@ -34,7 +34,6 @@ pub enum ConfigError {
 pub struct Config {
     pub godot_version: Version,
     pub asset_definitions: BTreeMap<String, AssetDefinition>,
-    pub install_folders: BTreeMap<String, String>,
 }
 
 impl Config {
@@ -50,26 +49,12 @@ impl Config {
         self.asset_definitions.get(id)
     }
 
-    pub fn get_install_folder(&self, asset_id: &str) -> Option<&String> {
-        self.install_folders.get(asset_id)
-    }
-
-    pub fn set_install_folder(
-        &mut self,
-        id: &str,
-        install_folder: String,
-    ) -> Result<(), ConfigError> {
-        self.install_folders.insert(id.to_string(), install_folder);
-        self.save()
-    }
-
     pub fn init() -> Result<(), ConfigError> {
         let version = godot::project::get_version()?;
 
         let config = Config {
             asset_definitions: BTreeMap::new(),
             godot_version: version,
-            install_folders: BTreeMap::new(),
         };
 
         let contents = toml::to_string(&config)?;
@@ -89,15 +74,11 @@ impl Config {
         self.save()
     }
 
-    pub fn remove_asset(
-        &mut self,
-        id: &str,
-    ) -> Result<(Option<AssetDefinition>, Option<String>), ConfigError> {
+    pub fn remove_asset(&mut self, id: &str) -> Result<Option<AssetDefinition>, ConfigError> {
         let removed_info = self.asset_definitions.remove(id);
-        let removed_folder = self.install_folders.remove(id);
         self.save()?;
 
-        Ok((removed_info, removed_folder))
+        Ok(removed_info)
     }
 
     pub fn save(&self) -> Result<(), ConfigError> {

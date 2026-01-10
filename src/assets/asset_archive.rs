@@ -1,97 +1,109 @@
+use std::path::{Path, PathBuf};
+
 use zip::ZipArchive;
 
-use crate::{fs::path::get_out_path_from_archive_path, traits::ReadSeek};
+use crate::traits::ReadSeek;
 
-use super::{consts, AssetError};
+use super::AssetError;
 
 pub struct AssetArchive {
-    pub id: String,
     pub archive: ZipArchive<Box<dyn ReadSeek>>,
+}
+
+#[derive(Debug)]
+pub struct ArchivePath {
+    pub archive_path: PathBuf,
+    pub extract_path: PathBuf,
 }
 
 impl AssetArchive {
     /// Installs the asset archive to the addons directory.
     /// # Returns
     /// A `Result` containing the folder name of the installed asset or an `AssetError`
-    pub fn install(self) -> Result<String, AssetError> {
-        let (folder_name, zip_paths_to_extract) = self.get_plugin_name_and_files_to_extract()?;
+    pub fn install(
+        self,
+        include: &Vec<String>,
+        exclude: &Option<Vec<String>>,
+    ) -> Result<(), AssetError> {
+        let archive_paths = self.get_archive_paths(include, exclude);
 
         let mut archive = self.archive;
 
-        for path in zip_paths_to_extract {
-            let mut contents = archive.by_name(&path)?;
-            let Some(out_path) = get_out_path_from_archive_path(&path) else {
-                continue;
-            };
+        for path in &archive_paths {
+            let mut contents = archive.by_path(&path.archive_path)?;
 
             // create parent dir if not exists
-            if let Some(parent) = out_path.parent() {
+            if let Some(parent) = path.extract_path.parent() {
                 if !parent.as_os_str().is_empty() && !crate::fs::exists(parent)? {
                     crate::fs::safe_create_dir(parent)?;
                 }
             }
 
             // create file
-            if !out_path.exists() && !out_path.to_string_lossy().ends_with("/") {
-                let mut out_file = crate::fs::create(&out_path)?;
+            if !path.extract_path.exists() {
+                let mut out_file = crate::fs::create(&path.extract_path)?;
                 crate::fs::copy(&mut contents, &mut out_file)?;
             }
         }
 
-        Ok(folder_name)
+        Ok(())
     }
 
-    pub fn get_plugin_name_and_files_to_extract(
+    pub fn get_archive_paths(
         &self,
-    ) -> Result<(String, Vec<String>), AssetError> {
-        let Some((plugin_name, plugin_path)) = self.get_plugin_info() else {
-            return Err(AssetError::InvalidAssetStructure(self.id.to_string()));
-        };
+        include: &Vec<String>,
+        exclude: &Option<Vec<String>>,
+    ) -> Vec<ArchivePath> {
+        let root_dir = self.get_root_dir();
 
-        let file_paths = self
-            .archive
+        self.archive
             .file_names()
-            .filter(|file_name| file_name.starts_with(&plugin_path))
-            .map(String::from)
-            .collect();
+            .filter(|name| !name.ends_with('/'))
+            .map(PathBuf::from)
+            .filter(|path| {
+                for include_path in include {
+                    let start_path = match root_dir.clone() {
+                        Some(dir) => dir.join(include_path),
+                        None => path.clone(),
+                    };
 
-        Ok((plugin_name, file_paths))
+                    if path.starts_with(start_path) {
+                        return true;
+                    }
+                }
+                false
+            })
+            .filter(|path| {
+                if let Some(exclude_list) = exclude {
+                    for exclude_path in exclude_list {
+                        let start_path = match root_dir.clone() {
+                            Some(dir) => dir.join(exclude_path),
+                            None => path.clone(),
+                        };
+                        if path.starts_with(start_path) {
+                            return false;
+                        }
+                    }
+                }
+                true
+            })
+            .map(|path| ArchivePath {
+                archive_path: path.clone(),
+                extract_path: match root_dir.clone() {
+                    Some(dir) => path.strip_prefix(dir).unwrap().to_path_buf(),
+                    None => path.clone(),
+                },
+            })
+            .collect::<Vec<ArchivePath>>()
     }
 
-    fn get_plugin_info(&self) -> Option<(String, String)> {
-        self.archive.file_names().find_map(|file_name| {
-            let mut parts = file_name.split('/');
-            let mut full_path = Vec::new();
+    fn get_root_dir(&self) -> Option<PathBuf> {
+        self.archive
+            .root_dir(AssetArchive::root_dir_filter)
+            .unwrap()
+    }
 
-            // Check if "addons" is the first part or the second part
-            if let Some(first_part) = parts.next() {
-                full_path.push(first_part);
-
-                if first_part == consts::ADDONS_PART_PATTERN {
-                    if let Some(plugin_folder) = parts.next() {
-                        if !plugin_folder.is_empty() {
-                            full_path.push(plugin_folder);
-                            return Some((plugin_folder.to_string(), full_path.join("/")));
-                        }
-                    }
-                }
-            }
-
-            // If not found in the first part, check for "addons" in the next layer
-            if let Some(second_part) = parts.next() {
-                full_path.push(second_part);
-
-                if second_part == consts::ADDONS_PART_PATTERN {
-                    if let Some(plugin_folder) = parts.next() {
-                        if !plugin_folder.is_empty() {
-                            full_path.push(plugin_folder);
-                            return Some((plugin_folder.to_string(), full_path.join("/")));
-                        }
-                    }
-                }
-            }
-
-            None
-        })
+    fn root_dir_filter(_path: &Path) -> bool {
+        true
     }
 }

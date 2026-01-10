@@ -55,15 +55,11 @@ impl AssetProvider for GitHub {
             return Err(AssetProviderError::NotSupported);
         };
 
-        let (heads_or_tags, branch_or_tag) = if version.starts_with('#') {
-            ("tags", &version[1..])
+        let github_url = if let Some(tag) = version.strip_prefix("tags") {
+            format!("https://github.com/{reponame}/archive/refs/tags/{tag}.zip")
         } else {
-            ("heads", *version)
+            format!("https://github.com/{reponame}/archive/refs/heads/{version}.zip")
         };
-
-        let github_url = format!(
-            "https://github.com/{reponame}/archive/refs/{heads_or_tags}/{branch_or_tag}.zip"
-        );
 
         let bytes = web_requests::get_blob(Url::parse(&github_url)?).await?;
 

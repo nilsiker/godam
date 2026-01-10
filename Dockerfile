@@ -18,7 +18,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
 RUN . $CARGO_HOME/env
 
 # install godam
-RUN cargo install --git https://github.com/nilsiker/godam --branch feature/25-git-support
+RUN cargo install --git https://github.com/nilsiker/godam
 
 WORKDIR /workspace
 

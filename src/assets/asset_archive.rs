@@ -56,7 +56,8 @@ impl AssetArchive {
     ) -> Vec<ArchivePath> {
         let root_dir = self.get_root_dir();
 
-        self.archive
+        let paths = self
+            .archive
             .file_names()
             .filter(|name| !name.ends_with('/'))
             .map(PathBuf::from)
@@ -64,7 +65,7 @@ impl AssetArchive {
                 for include_path in include {
                     let start_path = match root_dir.clone() {
                         Some(dir) => dir.join(include_path),
-                        None => path.clone(),
+                        None => PathBuf::from(include_path),
                     };
 
                     if path.starts_with(start_path) {
@@ -94,7 +95,10 @@ impl AssetArchive {
                     None => path.clone(),
                 },
             })
-            .collect::<Vec<ArchivePath>>()
+            .collect::<Vec<ArchivePath>>();
+
+        println!("{:#?}", paths);
+        paths
     }
 
     fn get_root_dir(&self) -> Option<PathBuf> {

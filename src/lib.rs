@@ -1,5 +1,5 @@
-mod asset_providers;
-mod assets;
+pub mod args;
+pub mod asset;
 mod commands;
 mod config;
 mod console;
@@ -29,9 +29,10 @@ pub async fn run(command: &Command) -> Result<(), Box<dyn std::error::Error>> {
         Command::Install {
             id,
             source,
+            force,
             include,
             exclude,
-        } => install::exec(id, source, include.clone(), exclude.clone()).await?,
+        } => install::exec(id, source, *force, include.clone(), exclude.clone()).await?,
         Command::Uninstall { id } => uninstall::exec(id)?,
         Command::List => list::exec()?,
         Command::Clean => clean::exec()?,

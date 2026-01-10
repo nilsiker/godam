@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::{assets::cache, config};
+use crate::config;
 
 #[derive(Error, Debug)]
 pub enum CleanError {
@@ -11,6 +11,5 @@ pub enum CleanError {
 }
 
 pub fn exec() -> Result<(), CleanError> {
-    cache::clear()?;
-    Ok(())
+    unimplemented!()
 }

@@ -3,8 +3,12 @@ use thiserror::Error;
 use tokio::task::JoinSet;
 
 use crate::{
-    asset_providers::{asset_lib::AssetLib, github::GitHub, AssetProvider, AssetProviderError},
-    assets::{self, asset_definition::AssetDefinition, asset_source::AssetSource},
+    args::SourceArg,
+    asset::{
+        self,
+        asset_definition::{AssetDefinition, AssetDefinitionError},
+        providers::{AssetInfo, AssetProvider, AssetProviderError},
+    },
     config::{self, Config},
     console::{progress_style, GodamProgressMessage},
     info, warn,
@@ -12,8 +16,6 @@ use crate::{
 
 #[derive(Error, Debug)]
 pub enum InstallError {
-    #[error("Could not find asset metadata for ID: {0}")]
-    AssetMetadataNotFound(String),
     #[error(transparent)]
     Config(#[from] config::ConfigError),
 
@@ -27,31 +29,65 @@ pub enum InstallError {
     Zip(#[from] zip::result::ZipError),
 
     #[error(transparent)]
-    Asset(#[from] assets::AssetError),
+    Asset(#[from] asset::AssetError),
+
+    #[error(transparent)]
+    AssetDefinition(#[from] AssetDefinitionError),
 }
 
 pub async fn exec(
     id: &Option<String>,
-    source: &AssetSource,
+    source: &SourceArg,
+    force: bool,
     include: Vec<String>,
     exclude: Option<Vec<String>>,
 ) -> Result<(), InstallError> {
     if let Some(id) = id {
         let mut config = Config::get()?;
 
-        let asset_def = match source {
-            AssetSource::AssetLib => get_asset_lib_asset_def(id, include, exclude).await?,
-            AssetSource::Github => get_git_asset_def(id, include, exclude).await?,
+        let provider = match source {
+            SourceArg::AssetLib => AssetProvider::AssetLib { id: id.to_string() },
+            SourceArg::Git => AssetProvider::Git {
+                repo_url: id.to_string(),
+            },
+            SourceArg::Local => {
+                return Err(InstallError::AssetProvider(
+                    AssetProviderError::NotSupported,
+                ))
+            }
         };
 
-        if config.get_asset_info(id).is_none() {
+        let asset_metadata = provider.info().await;
+
+        let asset_def = AssetDefinition {
+            id: id.to_string(),
+            source: source.clone(),
+            cache: Default::default(),
+            include,
+            exclude,
+            metadata: asset_metadata,
+        };
+
+        if let Some(existing) = config.get_asset_info(id).cloned() {
+            if force {
+                info!("Updated {}...", asset_def.id);
+                asset::uninstall(existing.id.clone())?;
+                config.add_asset(id.to_string(), asset_def.clone())?;
+            } else {
+                warn!(
+                    "Asset with ID '{}' is already added. Use --force to update configuration.",
+                    id
+                );
+                return Ok(());
+            }
+        } else {
             config.add_asset(id.to_string(), asset_def.clone())?;
-            info!("Added {} to project.", asset_def.title);
+            info!("Added {} to project.", asset_def);
         }
     }
 
-    let progress = MultiProgress::new();
     let assets = Config::get()?.asset_definitions;
+    let progress = MultiProgress::new();
 
     if assets.is_empty() {
         warn!("No assets are added. Try 'godam install <ID>'");
@@ -63,12 +99,21 @@ pub async fn exec(
     for asset in assets.into_values() {
         let pb = progress.add(ProgressBar::new_spinner().with_style(progress_style()));
 
+        if asset.is_installed()? {
+            if force {
+                asset::uninstall(asset.id.clone())?;
+            } else {
+                pb.subtle("Already installed", &asset.to_string());
+                continue;
+            }
+        }
+
         tasks.spawn(async move {
             pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
             match asset.install(&pb).await {
-                Ok(_) => pb.complete("Installed", &asset.title),
-                Err(e) => pb.fail(&asset.title, &e.to_string()),
+                Ok(_) => pb.complete("Installed", &asset.to_string()),
+                Err(e) => pb.fail(&asset.to_string(), &e.to_string()),
             };
         });
     }
@@ -76,42 +121,4 @@ pub async fn exec(
     tasks.join_all().await;
 
     Ok(())
-}
-
-async fn get_git_asset_def(
-    id: &str,
-    include: Vec<String>,
-    exclude: Option<Vec<String>>,
-) -> Result<AssetDefinition, InstallError> {
-    let Some(metadata) = GitHub.lookup(id).await? else {
-        return Err(InstallError::AssetMetadataNotFound(id.to_string()));
-    };
-
-    Ok(AssetDefinition {
-        id: id.to_string(),
-        title: metadata.title,
-        source: AssetSource::Github,
-        include,
-        exclude,
-    })
-}
-
-async fn get_asset_lib_asset_def(
-    id: &str,
-    include: Vec<String>,
-    exclude: Option<Vec<String>>,
-) -> Result<AssetDefinition, InstallError> {
-    let Some(metadata) = AssetLib.lookup(id).await? else {
-        return Err(InstallError::AssetMetadataNotFound(id.to_string()));
-    };
-
-    let asset_def = AssetDefinition {
-        id: id.to_string(),
-        title: metadata.title,
-        source: AssetSource::AssetLib,
-        include,
-        exclude,
-    };
-
-    Ok(asset_def)
 }

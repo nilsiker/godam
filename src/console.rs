@@ -33,6 +33,8 @@ macro_rules! prompt_char {
 pub trait GodamProgressMessage {
     fn start(&self, action: &str, msg: &str);
     fn complete(&self, action: &str, msg: &str);
+    // How would I implement this method without boxing the display?
+    fn subtle(&self, action: &str, msg: &str);
     fn fail(&self, msg: &str, reason: &str);
 }
 
@@ -50,6 +52,14 @@ impl GodamProgressMessage for ProgressBar {
             "{} {}",
             style(action).color256(BLUE),
             style(msg).white()
+        ));
+    }
+
+    fn subtle(&self, action: &str, msg: &str) {
+        self.finish_with_message(format!(
+            "{} {}",
+            style(action).white().dim(),
+            style(msg).white().dim()
         ));
     }
 

@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::{
-    asset_providers::{asset_lib::AssetLib, AssetMetadata, AssetProvider, AssetProviderError},
+    asset::providers::{asset_lib, AssetProviderError},
     godot::project::{get_version, GodotProjectError},
     info,
 };
@@ -15,14 +15,11 @@ pub enum SearchError {
 
 pub async fn exec(asset_name: &str) -> Result<(), SearchError> {
     let version = get_version()?;
-    let assets = AssetLib.query(asset_name, Some(&version)).await?;
+    let assets = asset_lib::query(asset_name, Some(&version)).await?;
 
-    for AssetMetadata {
-        title, asset_id, ..
-    } in &assets
-    {
-        info!("{asset_id}: {title}");
-    }
+    assets.iter().for_each(|a| {
+        info!("{}: {}", a.asset_id, a.title);
+    });
 
     Ok(())
 }

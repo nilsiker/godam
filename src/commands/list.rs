@@ -1,5 +1,4 @@
 use crate::{
-    assets::asset_definition::AssetDefinition,
     config::{Config, ConfigError},
     info,
 };
@@ -20,7 +19,8 @@ pub fn exec() -> Result<(), ConfigError> {
         .0
         .len();
 
-    for (id, AssetDefinition { title, .. }) in config.asset_definitions {
+    for (id, asset_def) in config.asset_definitions {
+        let title = asset_def.to_string();
         info!("{id:>width$}: {title}", width = longest_id_length,)
     }
 

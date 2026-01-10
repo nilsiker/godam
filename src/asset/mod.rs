@@ -1,7 +1,6 @@
-pub mod asset_archive;
 pub mod asset_definition;
-pub mod asset_source;
 pub mod cache;
+pub mod providers;
 
 use std::path::PathBuf;
 
@@ -29,7 +28,7 @@ pub fn uninstall(id: String) -> Result<(), AssetError> {
 
     match config.get_asset_info(&id) {
         Some(asset_def) => {
-            let archive = cache::get(&id)?;
+            let archive = cache::local::get(&id)?;
             let paths = archive.get_archive_paths(&asset_def.include, &asset_def.exclude);
 
             for path in paths {

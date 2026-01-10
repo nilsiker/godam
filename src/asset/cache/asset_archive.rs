@@ -2,9 +2,7 @@ use std::path::{Path, PathBuf};
 
 use zip::ZipArchive;
 
-use crate::traits::ReadSeek;
-
-use super::AssetError;
+use crate::{asset::AssetError, traits::ReadSeek};
 
 pub struct AssetArchive {
     pub archive: ZipArchive<Box<dyn ReadSeek>>,
@@ -18,16 +16,14 @@ pub struct ArchivePath {
 
 impl AssetArchive {
     /// Installs the asset archive to the addons directory.
-    /// # Returns
-    /// A `Result` containing the folder name of the installed asset or an `AssetError`
-    pub fn install(
-        self,
-        include: &Vec<String>,
+    pub fn extract(
+        &mut self,
+        include: &[String],
         exclude: &Option<Vec<String>>,
     ) -> Result<(), AssetError> {
         let archive_paths = self.get_archive_paths(include, exclude);
 
-        let mut archive = self.archive;
+        let archive = &mut self.archive;
 
         for path in &archive_paths {
             let mut contents = archive.by_path(&path.archive_path)?;
@@ -51,7 +47,7 @@ impl AssetArchive {
 
     pub fn get_archive_paths(
         &self,
-        include: &Vec<String>,
+        include: &[String],
         exclude: &Option<Vec<String>>,
     ) -> Vec<ArchivePath> {
         let root_dir = self.get_root_dir();
@@ -98,6 +94,18 @@ impl AssetArchive {
             .collect::<Vec<ArchivePath>>();
 
         paths
+    }
+
+    pub fn any_file_already_extracted(
+        &self,
+        include: &Vec<String>,
+        exclude: &Option<Vec<String>>,
+    ) -> bool {
+        let archive_paths = self.get_archive_paths(include, exclude);
+
+        archive_paths
+            .iter()
+            .any(|path| path.extract_path.try_exists().unwrap_or(false))
     }
 
     fn get_root_dir(&self) -> Option<PathBuf> {

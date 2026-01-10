@@ -2,7 +2,7 @@ use indicatif::{MultiProgress, ProgressBar};
 use thiserror::Error;
 
 use crate::{
-    assets::{self, AssetError},
+    asset::{self, AssetError},
     config::{Config, ConfigError},
     console::{progress_style, GodamProgressMessage},
     prompt_char,
@@ -48,23 +48,23 @@ fn uninstall_single(id: &str, config: &mut Config, progress: &MultiProgress) {
         }
     };
 
-    pb.start("Uninstalling", &asset.title);
-    match assets::uninstall(id.to_string()) {
+    pb.start("Uninstalling", &asset.to_string());
+    match asset::uninstall(id.to_string()) {
         Ok(()) => (),
         Err(e) => {
             pb.fail(id, &e.to_string());
         }
     }
 
-    pb.start("Removing", &asset.title);
+    pb.start("Removing", &asset.to_string());
     match config.remove_asset(id) {
         Ok(_) => (),
         Err(e) => {
-            pb.fail(&asset.title, &e.to_string());
+            pb.fail(&asset.to_string(), &e.to_string());
             return;
         }
     }
-    pb.complete("Removed", &asset.title);
+    pb.complete("Removed", &asset.to_string());
 }
 
 fn uninstall_all(config: &mut Config, progress: &MultiProgress) -> Result<(), UninstallError> {

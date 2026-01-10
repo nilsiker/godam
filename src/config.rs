@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    assets::asset_definition::AssetDefinition,
+    asset::asset_definition::AssetDefinition,
     fs::{
         path::{get_addons_path, get_config_path, get_gitignore_path},
         ADDONS_GITIGNORE_CONTENT,

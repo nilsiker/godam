@@ -7,7 +7,7 @@ pub mod uninstall;
 
 use clap::Subcommand;
 
-use crate::assets::asset_source::AssetSource;
+use crate::args::SourceArg;
 
 #[derive(Subcommand)]
 pub enum Command {
@@ -27,10 +27,12 @@ pub enum Command {
         #[arg(index = 1)]
         id: Option<String>,
         #[arg(long, short = 's', default_value_t, value_enum)]
-        source: AssetSource,
+        source: SourceArg,
+        #[arg(long, short = 'f', default_value_t = false)]
+        force: bool,
         #[arg(long, short = 'i', default_values_t = ["addons".to_string()], value_delimiter = ',')]
         include: Vec<String>,
-        #[arg(long, short = 'e')]
+        #[arg(long, short = 'e', value_delimiter = ',')]
         exclude: Option<Vec<String>>,
     },
     /// Uninstalls the specified addon from your Godot project

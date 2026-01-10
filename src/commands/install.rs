@@ -54,7 +54,7 @@ pub async fn exec(
     let assets = Config::get()?.asset_definitions;
 
     if assets.is_empty() {
-        warn!("No assets are added. Try 'godam add <ID>'");
+        warn!("No assets are added. Try 'godam install <ID>'");
         return Ok(());
     }
 

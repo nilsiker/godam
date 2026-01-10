@@ -26,11 +26,11 @@ pub enum Command {
     Install {
         #[arg(index = 1)]
         id: Option<String>,
-        #[arg(short = 's', default_value_t, value_enum)]
+        #[arg(long, short = 's', default_value_t, value_enum)]
         source: AssetSource,
-        #[arg(short = 'i', default_values_t = ["addons".to_string()], value_delimiter = ',')]
+        #[arg(long, short = 'i', default_values_t = ["addons".to_string()], value_delimiter = ',')]
         include: Vec<String>,
-        #[arg(short = 'e')]
+        #[arg(long, short = 'e')]
         exclude: Option<Vec<String>>,
     },
     /// Uninstalls the specified addon from your Godot project

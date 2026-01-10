@@ -18,30 +18,26 @@ impl AssetProvider for GitHub {
     }
 
     async fn lookup(&self, id: &str) -> Result<Option<AssetMetadata>, AssetProviderError> {
-        let split = id.split(':').collect::<Vec<&str>>();
-
-        if split.len() != 2 {
-            return Err(AssetProviderError::NotSupported);
-        }
-
-        // let on a slice:
-        let Some(reponame) = split.first() else {
-            return Err(AssetProviderError::NotSupported);
-        };
-        let Some(branch) = split.get(1) else {
-            return Err(AssetProviderError::NotSupported);
-        };
-
-        let github_url = format!("https://github.com/{reponame}/archive/refs/heads/{branch}.zip");
+        let (reponame, github_url) = GitHub::get_info(id)?;
 
         Ok(Some(AssetMetadata {
             asset_id: id.to_string(),
             title: reponame.replace("/", "."),
-            download_url: Some(github_url),
+            download_url: Some(github_url.to_string()),
         }))
     }
 
     async fn download(&self, id: &str) -> Result<AssetBlob, AssetProviderError> {
+        let github_url = GitHub::get_info(id)?.1;
+        let bytes = web_requests::get_blob(github_url).await?;
+
+        Ok(AssetBlob { bytes })
+    }
+}
+
+impl GitHub {
+    /// Returns (reponame, download_url)
+    fn get_info(id: &str) -> Result<(&str, Url), AssetProviderError> {
         let split = id.split(':').collect::<Vec<&str>>();
 
         if split.len() != 2 {
@@ -61,8 +57,6 @@ impl AssetProvider for GitHub {
             format!("https://github.com/{reponame}/archive/refs/heads/{version}.zip")
         };
 
-        let bytes = web_requests::get_blob(Url::parse(&github_url)?).await?;
-
-        Ok(AssetBlob { bytes })
+        Ok((*reponame, Url::parse(&github_url)?))
     }
 }

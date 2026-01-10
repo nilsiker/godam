@@ -97,7 +97,6 @@ impl AssetArchive {
             })
             .collect::<Vec<ArchivePath>>();
 
-        println!("{:#?}", paths);
         paths
     }
 

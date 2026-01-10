@@ -79,7 +79,7 @@ impl AssetArchive {
                     for exclude_path in exclude_list {
                         let start_path = match root_dir.clone() {
                             Some(dir) => dir.join(exclude_path),
-                            None => path.clone(),
+                            None => PathBuf::from(exclude_path),
                         };
                         if path.starts_with(start_path) {
                             return false;

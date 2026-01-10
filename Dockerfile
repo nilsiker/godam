@@ -1,4 +1,4 @@
-FROM barichello/godot-ci:4.4
+FROM barichello/godot-ci:4.5
 
 # setup rust
 ENV RUSTUP_HOME=/usr/local/rustup \
@@ -18,7 +18,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
 RUN . $CARGO_HOME/env
 
 # install godam
-RUN cargo install godam --version 0.1.2
+RUN cargo install --git https://github.com/nilsiker/godam
 
 WORKDIR /workspace
 

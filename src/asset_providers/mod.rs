@@ -5,6 +5,7 @@ use thiserror::Error;
 use crate::web_requests::WebRequestError;
 
 pub mod asset_lib;
+pub mod github;
 
 pub trait AssetProvider {
     /// A lookup by ID to get the metadata of an asset. Metadata is expected to be complete.
@@ -12,7 +13,7 @@ pub trait AssetProvider {
     /// A query by title and optional version to get a list of assets that match the criteria.
     /// Metadata is expected to be partial, containing at least the ID and title.
     async fn query(
-        &self, 
+        &self,
         title: &str,
         version: Option<&Version>,
     ) -> Result<Vec<AssetMetadata>, AssetProviderError>;
@@ -28,6 +29,8 @@ pub enum AssetProviderError {
     WebRequest(#[from] WebRequestError),
     #[error(transparent)]
     Parse(#[from] url::ParseError),
+    #[error("Unsupported operation.")]
+    NotSupported,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]

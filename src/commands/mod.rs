@@ -7,6 +7,8 @@ pub mod uninstall;
 
 use clap::Subcommand;
 
+use crate::assets::asset_source::AssetSource;
+
 #[derive(Subcommand)]
 pub enum Command {
     #[command()]
@@ -18,20 +20,25 @@ pub enum Command {
         #[arg(index = 1)]
         name: String,
     },
-    /// Installs the specified addon to your Godot project, adding it to the godam configuration.
-
+    /// Adds the specified addon to your Godam configuration.
     #[command(alias = "i")]
+    /// Installs all configured addons to your Godot project.
     Install {
-        /// The name of the asset you want to install
         #[arg(index = 1)]
-        name: Option<Vec<String>>,
+        id: Option<String>,
+        #[arg(long, short = 's', default_value_t, value_enum)]
+        source: AssetSource,
+        #[arg(long, short = 'i', default_values_t = ["addons".to_string()], value_delimiter = ',')]
+        include: Vec<String>,
+        #[arg(long, short = 'e')]
+        exclude: Option<Vec<String>>,
     },
-    /// Uninstalls the specified addon from your Godot project, removing it from the godam configuration.
+    /// Uninstalls the specified addon from your Godot project
     #[command(alias = "u")]
     Uninstall {
-        /// The name of the asset you want to uninstall
+        /// The id of the asset you want to uninstall. If not specified, all assets will be uninstalled.
         #[arg(index = 1)]
-        name: Option<String>,
+        id: Option<String>,
     },
     /// Lists all assets being managed by Godam
     #[command(alias = "ls", alias = "l")]

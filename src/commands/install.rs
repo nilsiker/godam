@@ -1,24 +1,19 @@
-use std::{
-    io::Cursor,
-    sync::{Arc, Mutex},
-};
-
 use indicatif::{MultiProgress, ProgressBar};
 use thiserror::Error;
 use tokio::task::JoinSet;
-use zip::ZipArchive;
 
 use crate::{
-    asset_providers::{asset_lib::AssetLib, AssetMetadata, AssetProvider, AssetProviderError},
-    assets::{self, asset_archive::AssetArchive, cache, get_install_folders_in_project},
+    asset_providers::{asset_lib::AssetLib, github::GitHub, AssetProvider, AssetProviderError},
+    assets::{self, asset_definition::AssetDefinition, asset_source::AssetSource},
     config::{self, Config},
     console::{progress_style, GodamProgressMessage},
-    traits::ReadSeek,
-    warn,
+    info, warn,
 };
 
 #[derive(Error, Debug)]
 pub enum InstallError {
+    #[error("Could not find asset metadata for ID: {0}")]
+    AssetMetadataNotFound(String),
     #[error(transparent)]
     Config(#[from] config::ConfigError),
 
@@ -33,60 +28,46 @@ pub enum InstallError {
 
     #[error(transparent)]
     Asset(#[from] assets::AssetError),
-
-    #[error("An error occured when locking resources for a thread.")]
-    Mutex,
 }
 
-pub async fn exec(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
-    let mut config = Config::get()?;
+pub async fn exec(
+    id: &Option<String>,
+    source: &AssetSource,
+    include: Vec<String>,
+    exclude: Option<Vec<String>>,
+) -> Result<(), InstallError> {
+    if let Some(id) = id {
+        let mut config = Config::get()?;
 
-    if let Some(ids) = ids {
-        for id in ids {
-            if config.get_asset_info(id).is_none() {
-                match AssetLib.lookup(id).await {
-                    Ok(Some(asset)) => config.add_asset(id.to_string(), asset)?,
-                    Ok(None) => {
-                        warn!("No asset found with id {id}");
-                        continue;
-                    }
-                    Err(e) => warn!("{e}"),
-                }
-            }
+        let asset_def = match source {
+            AssetSource::AssetLib => get_asset_lib_asset_def(id, include, exclude).await?,
+            AssetSource::Github => get_git_asset_def(id, include, exclude).await?,
+        };
+
+        if config.get_asset_info(id).is_none() {
+            config.add_asset(id.to_string(), asset_def.clone())?;
+            info!("Added {} to project.", asset_def.title);
         }
     }
 
     let progress = MultiProgress::new();
+    let assets = Config::get()?.asset_definitions;
 
-    let assets = Config::get()?.asset_infos;
-    let install_folders = get_install_folders_in_project()?;
-
-    let not_installed_assets: Vec<(String, AssetMetadata)> = assets
-        .into_iter()
-        .filter_map(|entry| {
-            let Some(folder) = config.get_install_folder(&entry.0) else {
-                return Some(entry);
-            };
-
-            if install_folders.contains(folder) {
-                None
-            } else {
-                Some(entry)
-            }
-        })
-        .collect();
-
-    let config = Arc::new(Mutex::new(config));
+    if assets.is_empty() {
+        warn!("No assets are added. Try 'godam install <ID>'");
+        return Ok(());
+    }
 
     let mut tasks = JoinSet::new();
 
-    for (id, asset) in not_installed_assets {
-        let config = config.clone();
+    for asset in assets.into_values() {
         let pb = progress.add(ProgressBar::new_spinner().with_style(progress_style()));
+
         tasks.spawn(async move {
             pb.enable_steady_tick(std::time::Duration::from_millis(100));
-            match install_asset(&id, &asset, &pb, config).await {
-                Ok(()) => pb.complete("Installed", &asset.title),
+
+            match asset.install(&pb).await {
+                Ok(_) => pb.complete("Installed", &asset.title),
                 Err(e) => pb.fail(&asset.title, &e.to_string()),
             };
         });
@@ -97,60 +78,40 @@ pub async fn exec(ids: &Option<Vec<String>>) -> Result<(), InstallError> {
     Ok(())
 }
 
-async fn install_asset(
+async fn get_git_asset_def(
     id: &str,
-    asset: &AssetMetadata,
-    progress: &ProgressBar,
-    config: Arc<Mutex<Config>>,
-) -> Result<(), InstallError> {
-    progress.start("Fetching", &asset.title);
-    let archive: AssetArchive = match cache::get(id) {
-        Ok(hit) => hit,
-
-        Err(_) => {
-            let blob = AssetLib.download(&asset.asset_id).await?;
-            cache::write_to_cache(id, &blob)?;
-            let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(blob.bytes));
-            AssetArchive {
-                id: id.to_string(),
-                archive: ZipArchive::new(cursor)?,
-            }
-        }
+    include: Vec<String>,
+    exclude: Option<Vec<String>>,
+) -> Result<AssetDefinition, InstallError> {
+    let Some(metadata) = GitHub.lookup(id).await? else {
+        return Err(InstallError::AssetMetadataNotFound(id.to_string()));
     };
 
-    // register install folder before installing
-    match config.lock() {
-        Ok(mut config) => {
-            let install_folder_name = match archive.get_plugin_info() {
-                Some((name, _)) => name,
-                None => {
-                    return Err(InstallError::Asset(
-                        assets::AssetError::InvalidAssetStructure(
-                            "Could not find plugin name".to_string(),
-                        ),
-                    ))
-                }
-            };
-            if let Err(e) = config.set_install_folder(id, install_folder_name) {
-                progress.fail(&asset.title, &e.to_string());
-            }
-        }
-        Err(e) => {
-            progress.fail(&asset.title, &e.to_string());
-            return Err(InstallError::Mutex);
-        }
-    }
+    Ok(AssetDefinition {
+        id: id.to_string(),
+        title: metadata.title,
+        source: AssetSource::Github,
+        include,
+        exclude,
+    })
+}
 
-    progress.start("Unpacking", &asset.title);
-    match assets::install(archive).map_err(InstallError::from) {
-        Ok(folder) => folder,
-        Err(e) => {
-            progress.fail(&asset.title, &e.to_string());
-            return Err(e);
-        }
+async fn get_asset_lib_asset_def(
+    id: &str,
+    include: Vec<String>,
+    exclude: Option<Vec<String>>,
+) -> Result<AssetDefinition, InstallError> {
+    let Some(metadata) = AssetLib.lookup(id).await? else {
+        return Err(InstallError::AssetMetadataNotFound(id.to_string()));
     };
 
-    progress.complete("Installed", &asset.title);
+    let asset_def = AssetDefinition {
+        id: id.to_string(),
+        title: metadata.title,
+        source: AssetSource::AssetLib,
+        include,
+        exclude,
+    };
 
-    Ok(())
+    Ok(asset_def)
 }

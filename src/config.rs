@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    asset_providers::AssetMetadata,
+    assets::asset_definition::AssetDefinition,
     fs::{
         path::{get_addons_path, get_config_path, get_gitignore_path},
         ADDONS_GITIGNORE_CONTENT,
@@ -33,8 +33,7 @@ pub enum ConfigError {
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub godot_version: Version,
-    pub asset_infos: BTreeMap<String, AssetMetadata>,
-    pub install_folders: BTreeMap<String, String>,
+    pub asset_definitions: BTreeMap<String, AssetDefinition>,
 }
 
 impl Config {
@@ -46,30 +45,16 @@ impl Config {
         Ok(config)
     }
 
-    pub fn get_asset_info(&self, id: &str) -> Option<&AssetMetadata> {
-        self.asset_infos.get(id)
-    }
-
-    pub fn get_install_folder(&self, asset_id: &str) -> Option<&String> {
-        self.install_folders.get(asset_id)
-    }
-
-    pub fn set_install_folder(
-        &mut self,
-        id: &str,
-        install_folder: String,
-    ) -> Result<(), ConfigError> {
-        self.install_folders.insert(id.to_string(), install_folder);
-        self.save()
+    pub fn get_asset_info(&self, id: &str) -> Option<&AssetDefinition> {
+        self.asset_definitions.get(id)
     }
 
     pub fn init() -> Result<(), ConfigError> {
         let version = godot::project::get_version()?;
 
         let config = Config {
-            asset_infos: BTreeMap::new(),
+            asset_definitions: BTreeMap::new(),
             godot_version: version,
-            install_folders: BTreeMap::new(),
         };
 
         let contents = toml::to_string(&config)?;
@@ -84,20 +69,16 @@ impl Config {
         Ok(())
     }
 
-    pub fn add_asset(&mut self, id: String, asset: AssetMetadata) -> Result<(), ConfigError> {
-        self.asset_infos.insert(id, asset);
+    pub fn add_asset(&mut self, id: String, asset: AssetDefinition) -> Result<(), ConfigError> {
+        self.asset_definitions.insert(id, asset);
         self.save()
     }
 
-    pub fn remove_asset(
-        &mut self,
-        id: &str,
-    ) -> Result<(Option<AssetMetadata>, Option<String>), ConfigError> {
-        let removed_info = self.asset_infos.remove(id);
-        let removed_folder = self.install_folders.remove(id);
+    pub fn remove_asset(&mut self, id: &str) -> Result<Option<AssetDefinition>, ConfigError> {
+        let removed_info = self.asset_definitions.remove(id);
         self.save()?;
 
-        Ok((removed_info, removed_folder))
+        Ok(removed_info)
     }
 
     pub fn save(&self) -> Result<(), ConfigError> {

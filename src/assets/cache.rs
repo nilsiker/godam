@@ -5,9 +5,10 @@ use crate::{
         path::{get_cache_path, get_cached_zip_path},
         safe_create_dir, safe_remove_file, safe_write,
     },
+    info,
+    traits::ReadSeek,
+    warn,
 };
-
-use crate::{info, traits::ReadSeek, warn};
 
 use super::asset_archive::AssetArchive;
 
@@ -20,19 +21,17 @@ pub fn write_to_cache(id: &str, archive: &AssetBlob) -> Result<(), std::io::Erro
     Ok(())
 }
 
+// Gets an archive from the cache.
 pub fn get(id: &str) -> Result<AssetArchive, std::io::Error> {
     ensure_cache_dir()?;
 
-    let file_path = get_cached_zip_path(id);
+    let file_path = get_cached_zip_path(id.replace("/", "_").as_str());
 
     let file = open(&file_path)?;
     let boxed_file: Box<dyn ReadSeek> = Box::new(file);
     let archive = zip::read::ZipArchive::new(boxed_file)?;
 
-    Ok(AssetArchive {
-        id: id.to_string(),
-        archive,
-    })
+    Ok(AssetArchive { archive })
 }
 
 /// Clear the cache by removing all cached files.

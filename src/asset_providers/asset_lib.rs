@@ -9,19 +9,8 @@ use crate::web_requests::{self};
 use super::{AssetBlob, AssetMetadata, AssetProvider, AssetProviderError};
 
 #[derive(Deserialize, Serialize, Clone)]
-pub struct AssetResponse {
-    result: Vec<AssetMetadata>,
-}
-
-#[derive(Deserialize, Serialize, Clone)]
 pub struct AssetSearchResponse {
     result: Vec<AssetMetadata>,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
-pub struct AssetSearchResult {
-    pub asset_id: String,
-    pub title: String,
 }
 
 const ASSET_LIBRARY_ASSET_URL: &str = "https://godotengine.org/asset-library/api/asset";

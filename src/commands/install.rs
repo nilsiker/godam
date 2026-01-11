@@ -3,15 +3,16 @@ use thiserror::Error;
 use tokio::task::JoinSet;
 
 use crate::{
-    args::SourceArg,
+    args::{CacheArg, SourceArg},
     asset::{
         self,
         asset_definition::{AssetDefinition, AssetDefinitionError},
-        providers::{AssetInfo, AssetProvider, AssetProviderError},
+        providers::AssetProviderError,
     },
     config::{self, Config},
-    console::{progress_style, GodamProgressMessage},
-    info, warn,
+    console::progress_style,
+    job::install_job::{InstallArgs, InstallJob},
+    warn,
 };
 
 #[derive(Error, Debug)]
@@ -38,52 +39,22 @@ pub enum InstallError {
 pub async fn exec(
     id: &Option<String>,
     source: &SourceArg,
+    cache: &CacheArg,
     force: bool,
     include: Vec<String>,
     exclude: Option<Vec<String>>,
 ) -> Result<(), InstallError> {
     if let Some(id) = id {
+        // refactor this back into an "add" command
         let mut config = Config::get()?;
-
-        let provider = match source {
-            SourceArg::AssetLib => AssetProvider::AssetLib { id: id.to_string() },
-            SourceArg::Git => AssetProvider::Git {
-                repo_url: id.to_string(),
-            },
-            SourceArg::Local => {
-                return Err(InstallError::AssetProvider(
-                    AssetProviderError::NotSupported,
-                ))
-            }
-        };
-
-        let asset_metadata = provider.info().await;
-
-        let asset_def = AssetDefinition {
-            id: id.to_string(),
-            source: source.clone(),
-            cache: Default::default(),
-            include,
-            exclude,
-            metadata: asset_metadata,
-        };
-
-        if let Some(existing) = config.get_asset_info(id).cloned() {
-            if force {
-                info!("Updated {}...", asset_def.id);
-                asset::uninstall(existing.id.clone())?;
-                config.add_asset(id.to_string(), asset_def.clone())?;
-            } else {
-                warn!(
-                    "Asset with ID '{}' is already added. Use --force to update configuration.",
-                    id
-                );
-                return Ok(());
-            }
-        } else {
-            config.add_asset(id.to_string(), asset_def.clone())?;
-            info!("Added {} to project.", asset_def);
-        }
+        let asset_def = AssetDefinition::new(
+            id.to_string(),
+            source.clone(),
+            cache.clone(),
+            include.clone(),
+            exclude.clone(),
+        )?;
+        config.add_asset(id.clone(), asset_def)?;
     }
 
     let assets = Config::get()?.asset_definitions;
@@ -99,22 +70,22 @@ pub async fn exec(
     for asset in assets.into_values() {
         let pb = progress.add(ProgressBar::new_spinner().with_style(progress_style()));
 
-        if asset.is_installed()? {
-            if force {
-                asset::uninstall(asset.id.clone())?;
-            } else {
-                pb.subtle("Already installed", &asset.to_string());
-                continue;
-            }
-        }
-
         tasks.spawn(async move {
             pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
-            match asset.install(&pb).await {
-                Ok(_) => pb.complete("Installed", &asset.to_string()),
-                Err(e) => pb.fail(&asset.to_string(), &e.to_string()),
-            };
+            let job = InstallJob::new(
+                InstallArgs {
+                    id: asset.id.clone(),
+                    source: asset.source.clone(),
+                    cache: asset.cache.clone(),
+                    force,
+                    include: asset.include.clone(),
+                    exclude: asset.exclude.clone(),
+                },
+                pb,
+            );
+
+            job.run().await;
         });
     }
 

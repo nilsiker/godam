@@ -5,6 +5,7 @@ mod config;
 mod console;
 mod fs;
 mod godot;
+pub mod job;
 mod traits;
 mod web_requests;
 
@@ -29,10 +30,11 @@ pub async fn run(command: &Command) -> Result<(), Box<dyn std::error::Error>> {
         Command::Install {
             id,
             source,
+            cache,
             force,
             include,
             exclude,
-        } => install::exec(id, source, *force, include.clone(), exclude.clone()).await?,
+        } => install::exec(id, source, cache, *force, include.clone(), exclude.clone()).await?,
         Command::Uninstall { id } => uninstall::exec(id)?,
         Command::List => list::exec()?,
         Command::Clean => clean::exec()?,

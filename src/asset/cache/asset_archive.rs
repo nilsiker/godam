@@ -15,6 +15,13 @@ pub struct ArchivePath {
 }
 
 impl AssetArchive {
+    pub fn from_bytes(bytes: Vec<u8>) -> Result<Self, AssetError> {
+        let reader: Box<dyn ReadSeek> = Box::new(std::io::Cursor::new(bytes));
+        let archive = ZipArchive::new(reader)?;
+
+        Ok(Self { archive })
+    }
+
     /// Installs the asset archive to the addons directory.
     pub fn extract(
         &mut self,
@@ -102,7 +109,6 @@ impl AssetArchive {
         exclude: &Option<Vec<String>>,
     ) -> bool {
         let archive_paths = self.get_archive_paths(include, exclude);
-
         archive_paths
             .iter()
             .any(|path| path.extract_path.try_exists().unwrap_or(false))

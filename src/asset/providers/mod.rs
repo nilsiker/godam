@@ -1,18 +1,16 @@
 pub mod asset_lib;
 mod git;
 
-use std::{collections::HashMap, fmt::Display, future::Future, path::PathBuf};
+use std::{collections::HashMap, fmt::Display, future::Future};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use zip::ZipArchive;
 
 use crate::{
     asset::{
         cache::{Cache, CacheableObject},
         AssetError,
     },
-    fs,
     web_requests::WebRequestError,
 };
 

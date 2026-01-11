@@ -1,16 +1,11 @@
 //! Module for querying the Godot Asset Library for assets.
 
-use std::io::Cursor;
 
 use reqwest::Url;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use zip::ZipArchive;
 
-use crate::{
-    asset::cache::asset_archive::AssetArchive,
-    web_requests::{self},
-};
+use crate::web_requests::{self};
 
 use super::AssetProviderError;
 

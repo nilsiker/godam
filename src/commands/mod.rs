@@ -7,7 +7,7 @@ pub mod uninstall;
 
 use clap::Subcommand;
 
-use crate::args::SourceArg;
+use crate::args::{CacheArg, SourceArg};
 
 #[derive(Subcommand)]
 pub enum Command {
@@ -28,6 +28,8 @@ pub enum Command {
         id: Option<String>,
         #[arg(long, short = 's', default_value_t, value_enum)]
         source: SourceArg,
+        #[arg(long, short = 'c', default_value_t, value_enum)]
+        cache: CacheArg,
         #[arg(long, short = 'f', default_value_t = false)]
         force: bool,
         #[arg(long, short = 'i', default_values_t = ["addons".to_string()], value_delimiter = ',')]

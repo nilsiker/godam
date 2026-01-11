@@ -6,8 +6,8 @@ use zip::result::ZipError;
 use crate::{
     args::{CacheArg, SourceArg},
     asset::{
-        cache::{self, local::LocalCache, Cache},
-        providers::{AssetFetch, AssetInstall, AssetMetadata, AssetProvider, AssetProviderError},
+        cache::{local::LocalCache, Cache},
+        providers::{AssetInstall, AssetMetadata, AssetProvider, AssetProviderError},
     },
     warn,
 };
@@ -21,7 +21,25 @@ pub struct AssetDefinition {
     pub cache: CacheArg,
     pub include: Vec<String>,
     pub exclude: Option<Vec<String>>,
-    pub metadata: AssetMetadata,
+    metadata: AssetMetadata,
+}
+impl AssetDefinition {
+    pub fn new(
+        id: String,
+        source: SourceArg,
+        cache: CacheArg,
+        include: Vec<String>,
+        exclude: Option<Vec<String>>,
+    ) -> Result<Self, AssetDefinitionError> {
+        Ok(Self {
+            id,
+            source,
+            cache,
+            include,
+            exclude,
+            metadata: AssetMetadata::default(),
+        })
+    }
 }
 
 #[derive(Error, Debug)]

@@ -42,7 +42,7 @@ impl Cache for LocalCache {
         let boxed_file: Box<dyn ReadSeek> = Box::new(file);
         let archive = zip::read::ZipArchive::new(boxed_file)?;
 
-        Ok(AssetArchive { archive })
+        unimplemented!()
     }
 
     fn has(&self, id: &str) -> Result<bool, crate::asset::AssetError> {
@@ -55,7 +55,9 @@ impl Cache for LocalCache {
 }
 
 // Gets an archive from the cache.
-pub fn get(id: &str) -> Result<AssetArchive, std::io::Error> {}
+pub fn get(id: &str) -> Result<AssetArchive, std::io::Error> {
+    unimplemented!()
+}
 
 /// Clear the cache by removing all cached files.
 pub fn clear() -> Result<(), std::io::Error> {

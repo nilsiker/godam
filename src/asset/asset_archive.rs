@@ -23,12 +23,14 @@ impl AssetArchive {
     }
 
     /// Installs the asset archive to the addons directory.
-    pub fn extract(
+    pub fn extract_to_cache(
         &mut self,
-        include: &[String],
-        exclude: &Option<Vec<String>>,
+        id: super::cache::CacheId,
+        cache_path: &Path,
     ) -> Result<(), AssetError> {
-        let archive_paths = self.get_archive_paths(include, exclude);
+        let cache_path = cache_path.join(id.to_string());
+
+        let archive_paths = self.get_archive_paths(&cache_path);
 
         let archive = &mut self.archive;
 
@@ -52,11 +54,7 @@ impl AssetArchive {
         Ok(())
     }
 
-    pub fn get_archive_paths(
-        &self,
-        include: &[String],
-        exclude: &Option<Vec<String>>,
-    ) -> Vec<ArchivePath> {
+    pub fn get_archive_paths(&self, cache_path: &Path) -> Vec<ArchivePath> {
         let root_dir = self.get_root_dir();
 
         let paths = self
@@ -64,6 +62,36 @@ impl AssetArchive {
             .file_names()
             .filter(|name| !name.ends_with('/'))
             .map(PathBuf::from)
+            .map(|path| ArchivePath {
+                archive_path: path.clone(),
+                extract_path: match root_dir.clone() {
+                    Some(dir) => {
+                        let stripped_path = path.strip_prefix(dir).unwrap().to_path_buf();
+                        cache_path.join(stripped_path)
+                    }
+                    None => cache_path.join(path),
+                },
+            })
+            .collect::<Vec<ArchivePath>>();
+
+        paths
+    }
+
+    fn get_root_dir(&self) -> Option<PathBuf> {
+        self.archive
+            .root_dir(AssetArchive::root_dir_filter)
+            .unwrap()
+    }
+
+    fn root_dir_filter(_path: &Path) -> bool {
+        true
+    }
+}
+
+/*
+*
+*
+*
             .filter(|path| {
                 for include_path in include {
                     let start_path = match root_dir.clone() {
@@ -91,36 +119,4 @@ impl AssetArchive {
                 }
                 true
             })
-            .map(|path| ArchivePath {
-                archive_path: path.clone(),
-                extract_path: match root_dir.clone() {
-                    Some(dir) => path.strip_prefix(dir).unwrap().to_path_buf(),
-                    None => path.clone(),
-                },
-            })
-            .collect::<Vec<ArchivePath>>();
-
-        paths
-    }
-
-    pub fn any_file_already_extracted(
-        &self,
-        include: &Vec<String>,
-        exclude: &Option<Vec<String>>,
-    ) -> bool {
-        let archive_paths = self.get_archive_paths(include, exclude);
-        archive_paths
-            .iter()
-            .any(|path| path.extract_path.try_exists().unwrap_or(false))
-    }
-
-    fn get_root_dir(&self) -> Option<PathBuf> {
-        self.archive
-            .root_dir(AssetArchive::root_dir_filter)
-            .unwrap()
-    }
-
-    fn root_dir_filter(_path: &Path) -> bool {
-        true
-    }
-}
+*/

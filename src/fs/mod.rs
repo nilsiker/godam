@@ -29,6 +29,14 @@ where
     std::fs::write(asserted_path, contents)
 }
 
+pub fn safe_copy(path: &Path, dest: &Path) -> Result<()>
+where
+{
+    let asserted_dest = get_path_asserted_within_project(dest)?;
+    std::fs::copy(path, asserted_dest)?;
+    Ok(())
+}
+
 pub fn safe_remove_file(path: &Path) -> Result<()> {
     let asserted_path = get_path_asserted_within_project(path)?;
     std::fs::remove_file(asserted_path)

@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use indicatif::{MultiProgress, ProgressBar};
 use thiserror::Error;
 use tokio::task::JoinSet;
@@ -45,8 +47,8 @@ pub async fn exec(
     exclude: Option<Vec<String>>,
 ) -> Result<(), InstallError> {
     if let Some(id) = id {
-        // refactor this back into an "add" command
         let mut config = Config::get()?;
+        // refactor this back into an "add" command
         let asset_def = AssetDefinition::new(
             id.to_string(),
             source.clone(),
@@ -83,6 +85,7 @@ pub async fn exec(
                     exclude: asset.exclude.clone(),
                 },
                 pb,
+                asset.title().cloned(),
             );
 
             job.run().await;

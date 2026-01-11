@@ -1,69 +1,30 @@
+use std::path::PathBuf;
+
 use crate::{
-    asset::cache::{asset_archive::AssetArchive, Cache, CacheableObject, CachedObject},
-    fs::{
-        self, exists, open,
-        path::{get_cache_path, get_cached_zip_path},
-        safe_create_dir, safe_remove_file,
-    },
-    info,
-    traits::ReadSeek,
-    warn,
+    asset::cache::CacheError,
+    fs::{exists, path::get_cache_path, safe_create_dir, safe_remove_file},
+    info, warn,
 };
 
-pub struct LocalCache;
-impl Cache for LocalCache {
-    fn write(
-        &self,
-        id: &str,
-        object: CacheableObject,
-    ) -> Result<CachedObject, crate::asset::AssetError> {
-        ensure_cache_dir()?;
+pub fn get(id: &str) -> Result<Option<PathBuf>, CacheError> {
+    ensure_cache_dir()?;
 
-        let cached_path = get_cached_zip_path(id);
+    let cache_id = id.replace("/", "_");
 
-        match object {
-            CacheableObject::Archive(bytes) => {
-                fs::safe_write(&cached_path, &bytes)?;
-            }
-            CacheableObject::Directory(_) => unimplemented!(),
-        }
+    let path = get_cache_path().join(cache_id);
 
-        let cached = self.get(id)?;
-
-        Ok(cached)
+    if path.is_dir() {
+        Ok(Some(path))
+    } else {
+        Ok(None)
     }
-
-    fn get(&self, id: &str) -> Result<super::CachedObject, crate::asset::AssetError> {
-        ensure_cache_dir()?;
-
-        let file_path = get_cached_zip_path(id.replace("/", "_").as_str());
-
-        let file = open(&file_path)?;
-        let boxed_file: Box<dyn ReadSeek> = Box::new(file);
-        let archive = zip::read::ZipArchive::new(boxed_file)?;
-
-        unimplemented!()
-    }
-
-    fn has(&self, id: &str) -> Result<bool, crate::asset::AssetError> {
-        todo!()
-    }
-
-    fn clear(&self) -> Result<(), crate::asset::AssetError> {
-        todo!()
-    }
-}
-
-// Gets an archive from the cache.
-pub fn get(id: &str) -> Result<AssetArchive, std::io::Error> {
-    unimplemented!()
 }
 
 /// Clear the cache by removing all cached files.
-pub fn clear() -> Result<(), std::io::Error> {
+pub fn clear() -> Result<(), CacheError> {
     let cache_path = get_cache_path();
 
-    let cache_dir = cache_path.read_dir()?;
+    let cache_dir = cache_path.read_dir().map_err(CacheError::Io)?;
 
     for entry in cache_dir {
         match entry {

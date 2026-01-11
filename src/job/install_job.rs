@@ -6,24 +6,27 @@ use url::Url;
 use crate::{
     args::{CacheArg, SourceArg},
     asset::{
-        cache::asset_archive::AssetArchive,
+        asset_archive::AssetArchive,
+        cache,
         providers::asset_lib::{self, AssetLibAssetMetadata},
     },
     console::GodamProgressMessage,
-    warn,
 };
 
 pub struct InstallJob {
     args: InstallArgs,
     progress: ProgressBar,
     state: State,
+    title: Option<String>,
 }
+
 impl InstallJob {
-    pub fn new(args: InstallArgs, progress: ProgressBar) -> Self {
+    pub fn new(args: InstallArgs, progress: ProgressBar, title: Option<String>) -> Self {
         Self {
             args,
             progress,
-            state: State::Resolving {},
+            state: State::CheckingCache {},
+            title,
         }
     }
 }
@@ -38,6 +41,7 @@ pub struct InstallArgs {
 }
 
 enum State {
+    CheckingCache {},
     Resolving {},
     Fetching {
         title: String,
@@ -45,11 +49,10 @@ enum State {
     },
     Caching {
         title: String,
-        path: PathBuf,
+        cache_strategy: CacheStrategy,
     },
     Installing {
-        title: String,
-        install_strategy: InstallStrategy,
+        path: PathBuf,
     },
     Skipped {
         title: String,
@@ -74,14 +77,13 @@ enum FetchStrategy {
     },
 }
 
-enum InstallStrategy {
-    ExtractZip { zip_bytes: Vec<u8> },
-    FromCacheZip { cache_zip_path: PathBuf },
-    FromCacheDirectory { cache_path: PathBuf },
+enum CacheStrategy {
+    FromBytes(Vec<u8>),
+    FromRepo(Url),
 }
 
 impl InstallJob {
-    pub async fn run(mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn run(mut self) {
         let InstallArgs {
             id,
             source,
@@ -93,8 +95,29 @@ impl InstallJob {
 
         let progress = self.progress;
 
-        loop {
+        'outer: loop {
             self.state = match self.state {
+                State::CheckingCache {} => {
+                    progress.start("Checking Cache", id);
+
+                    match cache {
+                        CacheArg::Local => match cache::local::get(id) {
+                            Ok(Some(path)) => {
+                                if *force {
+                                    State::Resolving {}
+                                } else {
+                                    State::Installing { path }
+                                }
+                            }
+                            Ok(None) => State::Resolving {},
+                            Err(e) => State::Failed {
+                                msg: id.to_string(),
+                                reason: format!("Failed to check local cache. ({e})"),
+                            },
+                        },
+                        CacheArg::Global => unimplemented!(),
+                    }
+                }
                 State::Resolving {} => {
                     progress.start("Resolving", id);
 
@@ -106,6 +129,16 @@ impl InstallJob {
                                 ..
                             }) => match Url::parse(&url) {
                                 Ok(download_url) => {
+                                    let mut config = crate::config::Config::get().unwrap();
+                                    if let Err(e) =
+                                        config.set_metadata(id, "title".to_string(), title.clone())
+                                    {
+                                        self.state = State::Failed {
+                                            msg: id.to_string(),
+                                            reason: format!("Failed to save asset metadata. ({e})"),
+                                        };
+                                        continue;
+                                    }
                                     let fetch_strategy = FetchStrategy::AssetLib { download_url };
                                     State::Fetching {
                                         title,
@@ -142,11 +175,9 @@ impl InstallJob {
                             progress.start("Downloading", &title);
 
                             match asset_lib::download(download_url.as_str()).await {
-                                Ok(bytes) => State::Installing {
+                                Ok(bytes) => State::Caching {
                                     title,
-                                    install_strategy: InstallStrategy::ExtractZip {
-                                        zip_bytes: bytes,
-                                    },
+                                    cache_strategy: CacheStrategy::FromBytes(bytes),
                                 },
                                 Err(e) => State::Failed {
                                     msg: title,
@@ -157,24 +188,26 @@ impl InstallJob {
                         _ => unimplemented!(),
                     }
                 }
-                State::Caching { title, .. } => {
+                State::Caching {
+                    title,
+                    cache_strategy,
+                } => {
                     progress.start("Caching", &title);
 
-                    unimplemented!()
-                }
-                State::Installing {
-                    title,
-                    install_strategy,
-                } => {
-                    progress.complete("Installing", &title);
+                    let cache_id = cache::CacheId::new(id);
+                    let cache_path = match cache {
+                        CacheArg::Local => crate::fs::path::get_cache_path(),
+                        CacheArg::Global => unimplemented!(),
+                    };
 
-                    match install_strategy {
-                        InstallStrategy::ExtractZip { zip_bytes } => {
-                            progress.start("Extracting", &title);
-
+                    match cache_strategy {
+                        CacheStrategy::FromBytes(zip_bytes) => {
+                            progress.start("Extracting to cache", &title);
                             match AssetArchive::from_bytes(zip_bytes) {
-                                Ok(mut archive) => match archive.extract(include, exclude) {
-                                    Ok(_) => State::Completed { title },
+                                Ok(mut archive) => match archive
+                                    .extract_to_cache(cache_id, cache_path)
+                                {
+                                    Ok(()) => State::Completed { title },
                                     Err(e) => State::Failed {
                                         msg: title,
                                         reason: format!("Failed to extract asset archive. ({e})"),
@@ -188,6 +221,94 @@ impl InstallJob {
                         }
                         _ => unimplemented!(),
                     }
+                }
+                State::Installing { path } => {
+                    let title = self.title.clone().unwrap_or("MISSING TITLE".to_string());
+
+                    let mut project_scope_paths = Vec::new();
+
+                    for dir in walkdir::WalkDir::new(&path) {
+                        match dir {
+                            Ok(entry) => {
+                                let cached_path = entry.path().to_path_buf();
+
+                                if cached_path.is_dir() {
+                                    continue;
+                                }
+
+                                let project_scope_path = match cached_path.strip_prefix(&path) {
+                                    Ok(stripped) => stripped.to_path_buf(),
+                                    Err(e) => {
+                                        self.state = State::Failed {
+                                            msg: title.clone(),
+                                            reason: format!(
+                                                "Failed to determine install path. ({e})"
+                                            ),
+                                        };
+                                        continue;
+                                    }
+                                };
+
+                                project_scope_paths.push(project_scope_path.clone());
+                            }
+                            Err(e) => {
+                                self.state = State::Failed {
+                                    msg: title.clone(),
+                                    reason: format!("Failed to read cache directory. ({e})"),
+                                };
+                                continue;
+                            }
+                        }
+                    }
+
+                    let paths_to_copy: Vec<PathBuf> = project_scope_paths
+                        .into_iter()
+                        .filter(|p| {
+                            include
+                                .iter()
+                                .any(|inc| p.to_string_lossy().starts_with(inc))
+                        })
+                        .filter(|p| {
+                            if let Some(exclude_patterns) = exclude {
+                                !exclude_patterns
+                                    .iter()
+                                    .any(|exc| p.to_string_lossy().starts_with(exc))
+                            } else {
+                                true
+                            }
+                        })
+                        .collect();
+
+                    for path_to_copy in paths_to_copy {
+                        let parent = path_to_copy
+                            .parent()
+                            .expect("cached file always has a parent");
+
+                        if parent.iter().count() > 0 && !parent.is_dir() {
+                            if let Err(e) = crate::fs::safe_create_dir(parent) {
+                                self.state = State::Failed {
+                                    msg: title.clone(),
+                                    reason: format!(
+                                        "Failed to create directory {}. ({e})",
+                                        parent.display()
+                                    ),
+                                };
+                                continue 'outer;
+                            }
+                        }
+
+                        if let Err(e) =
+                            crate::fs::safe_copy(&path.join(&path_to_copy), &path_to_copy)
+                        {
+                            self.state = State::Failed {
+                                msg: title.clone(),
+                                reason: format!("Failed to copy file. ({e})"),
+                            };
+                            continue 'outer;
+                        }
+                    }
+
+                    State::Completed { title }
                 }
                 State::Skipped { title, reason } => {
                     progress.subtle("Aborted", &format!("{}: {}", title, reason));
@@ -203,7 +324,5 @@ impl InstallJob {
                 }
             };
         }
-
-        Ok(())
     }
 }

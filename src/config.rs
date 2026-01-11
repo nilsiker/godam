@@ -49,6 +49,20 @@ impl Config {
         self.asset_definitions.get(id)
     }
 
+    pub fn set_metadata(
+        &mut self,
+        id: &str,
+        key: String,
+        value: String,
+    ) -> Result<(), ConfigError> {
+        if let Some(asset) = self.asset_definitions.get_mut(id) {
+            asset.metadata.insert(key, value);
+            self.save()?;
+        }
+
+        Ok(())
+    }
+
     pub fn init() -> Result<(), ConfigError> {
         let version = godot::project::get_version()?;
 

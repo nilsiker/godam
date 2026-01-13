@@ -21,8 +21,23 @@ pub enum Command {
         name: String,
     },
     /// Adds the specified addon to your Godam configuration.
-    #[command(alias = "i")]
+    #[command(alias = "a")]
+    Add {
+        #[arg(index = 1)]
+        id: String,
+        #[arg(long, short = 's', default_value_t, value_enum)]
+        source: SourceArg,
+        #[arg(long, short = 'c', default_value_t, value_enum)]
+        cache: CacheArg,
+        #[arg(long, short = 'f', default_value_t = false)]
+        force: bool,
+        #[arg(long, short = 'i', default_values_t = ["addons".to_string()], value_delimiter = ',')]
+        include: Vec<String>,
+        #[arg(long, short = 'e', value_delimiter = ',')]
+        exclude: Option<Vec<String>>,
+    },
     /// Installs all configured addons to your Godot project.
+    #[command(alias = "i")]
     Install {
         #[arg(index = 1)]
         id: Option<String>,

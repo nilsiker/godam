@@ -27,7 +27,7 @@ impl AssetArchive {
         &mut self,
         id: super::cache::CacheId,
         cache_path: &Path,
-    ) -> Result<(), AssetError> {
+    ) -> Result<PathBuf, AssetError> {
         let cache_path = cache_path.join(id.to_string());
 
         let archive_paths = self.get_archive_paths(&cache_path);
@@ -51,7 +51,7 @@ impl AssetArchive {
             }
         }
 
-        Ok(())
+        Ok(cache_path)
     }
 
     pub fn get_archive_paths(&self, cache_path: &Path) -> Vec<ArchivePath> {

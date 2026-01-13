@@ -27,6 +27,14 @@ pub async fn run(command: &Command) -> Result<(), Box<dyn std::error::Error>> {
     match command {
         Command::Init => init::exec()?,
         Command::Search { name } => search::exec(name).await?,
+        Command::Add {
+            id,
+            source,
+            cache,
+            force,
+            include,
+            exclude,
+        } => todo!(),
         Command::Install {
             id,
             source,

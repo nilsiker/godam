@@ -228,7 +228,7 @@ impl InstallJob {
                 self.progress.start("Extracting to cache", &title);
                 match AssetArchive::from_bytes(zip_bytes) {
                     Ok(mut archive) => match archive.extract_to_cache(cache_id, cache_path) {
-                        Ok(()) => State::Completed { title },
+                        Ok(path) => State::Installing { path },
                         Err(e) => State::Failed {
                             msg: title,
                             reason: format!("Failed to extract asset archive. ({e})"),

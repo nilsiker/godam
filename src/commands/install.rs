@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use indicatif::{MultiProgress, ProgressBar};
 use thiserror::Error;
 use tokio::task::JoinSet;
@@ -75,7 +73,7 @@ pub async fn exec(
         tasks.spawn(async move {
             pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
-            let job = InstallJob::new(
+            let mut job = InstallJob::new(
                 InstallArgs {
                     id: asset.id.clone(),
                     source: asset.source.clone(),
